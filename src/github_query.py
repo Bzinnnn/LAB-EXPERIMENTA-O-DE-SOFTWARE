@@ -17,7 +17,7 @@ class GitHubGraphQLClient:
             "reset": 0
         }
     
-    def execute_query(self, query: str, variables: Optional[Dict] = None, retry: int = 3) -> Dict:
+    def execute_query(self, query: str, variables: Optional[Dict] = None, retry: int = 5) -> Dict:
         payload = {
             "query": query,
             "variables": variables or {}
@@ -29,7 +29,7 @@ class GitHubGraphQLClient:
                     self.url,
                     json=payload,
                     headers=self.headers,
-                    timeout=60
+                    timeout=90
                 )
                 
                 # Atualizar informações de rate limit
@@ -41,8 +41,8 @@ class GitHubGraphQLClient:
                     return response.json()
                 elif response.status_code == 502:
                     if attempt < retry - 1:
-                        wait_time = (attempt + 1) * 5
-                        print(f"  ⚠ Erro 502 do servidor GitHub. Aguardando {wait_time}s antes de tentar novamente...")
+                        wait_time = (2 ** attempt) * 5  # Backoff exponencial: 5s, 10s, 20s, 40s, 80s
+                        print(f"  ⚠ Erro 502 do servidor GitHub. Aguardando {wait_time}s antes de tentar novamente (tentativa {attempt + 1}/{retry})...")
                         time.sleep(wait_time)
                         continue
                     else:
@@ -52,8 +52,8 @@ class GitHubGraphQLClient:
                     
             except requests.exceptions.Timeout:
                 if attempt < retry - 1:
-                    wait_time = (attempt + 1) * 5
-                    print(f"  ⚠ Timeout. Aguardando {wait_time}s antes de tentar novamente...")
+                    wait_time = (2 ** attempt) * 5
+                    print(f"  ⚠ Timeout. Aguardando {wait_time}s antes de tentar novamente (tentativa {attempt + 1}/{retry})...")
                     time.sleep(wait_time)
                 else:
                     raise Exception("Query timeout após múltiplas tentativas")
@@ -79,18 +79,15 @@ class GitHubGraphQLClient:
                             }
                             stargazerCount
                             forkCount
+                            watchers {
+                                totalCount
+                            }
                             createdAt
                             updatedAt
-                            issues(states: OPEN) {
+                            openIssues: issues(states: OPEN) {
                                 totalCount
                             }
                             closedIssues: issues(states: CLOSED) {
-                                totalCount
-                            }
-                            pullRequests(states: MERGED) {
-                                totalCount
-                            }
-                            releases {
                                 totalCount
                             }
                         }
@@ -99,18 +96,36 @@ class GitHubGraphQLClient:
             }
         }
         """
-        
-        variables = {
-            "first": first,
-            "after": after
-        }
-        
+
+        variables = {"first": first, "after": after}
         result = self.execute_query(query, variables)
-        
+
         if "errors" in result:
             raise Exception(f"GraphQL Error: {result['errors']}")
-        
+
         return result
+
+    def get_repo_details(self, owner: str, name: str) -> Dict:
+        """Busca PRs e releases separadamente para não sobrecarregar a query principal."""
+        query = """
+        query GetRepoDetails($owner: String!, $name: String!) {
+            repository(owner: $owner, name: $name) {
+                pullRequests(states: MERGED) {
+                    totalCount
+                }
+                releases {
+                    totalCount
+                }
+            }
+        }
+        """
+        variables = {"owner": owner, "name": name}
+        result = self.execute_query(query, variables)
+
+        if "errors" in result:
+            return {"pullRequests": {"totalCount": 0}, "releases": {"totalCount": 0}}
+
+        return result.get("data", {}).get("repository", {})
     
     def check_rate_limit(self) -> Dict:
         query = """

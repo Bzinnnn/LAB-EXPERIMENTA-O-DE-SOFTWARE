@@ -1,7 +1,7 @@
 # Analise de Repositorios Populares do GitHub
 ## Relatorio Inicial - Sprint 2
 
-**Data de Coleta:** 05/03/2026 16:11:05
+**Data de Coleta:** 05/03/2026 19:34:04
 **Total de Repositorios Analisados:** 1000
 
 ## Hipoteses Iniciais:
@@ -11,7 +11,7 @@
 - *Métrica calculada:* Idade mediana dos repositórios (dias)
 - *Esperado:* > 1095 dias (3 anos)
 - *Obtido:* 3061 dias (8.4 anos)
-- *Status:* Confirmada
+- *Status:* ✓ Confirmada
 
 
 ### RQ2: Sistemas populares recebem muita contribuicao externa?
@@ -19,7 +19,7 @@
 - *Métrica calculada:* Mediana de pull requests aceitas
 - *Esperado:* > 50 PRs
 - *Obtido:* 739 PRs
-- *Status:* Confirmada
+- *Status:* ✓ Confirmada
 
 
 ### RQ3: Sistemas populares lancam releases com frequencia?
@@ -27,7 +27,7 @@
 - *Métrica calculada:* Mediana de número de releases
 - *Esperado:* > 20 releases
 - *Obtido:* 40 releases
-- *Status:* Confirmada
+- *Status:* ✓ Confirmada
 
 
 ### RQ4: Sistemas populares sao atualizados com frequencia?
@@ -35,7 +35,7 @@
 - *Métrica calculada:* Mediana de dias desde a última atualização
 - *Esperado:* < 30 dias
 - *Obtido:* 0 dias
-- *Status:* Confirmada
+- *Status:* ✓ Confirmada
 
 
 ### RQ5: Sistemas populares sao escritos nas linguagens mais populares?
@@ -43,7 +43,7 @@
 - *Métrica calculada:* Distribuição de linguagens primárias
 - *Esperado:* > 40% (top 3 linguagens)
 - *Obtido:* 47.5% (top 3 linguagens)
-- *Status:* Confirmada
+- *Status:* ✓ Confirmada
 
 
 ### RQ6: Sistemas populares possuem alto percentual de issues fechadas?
@@ -51,7 +51,7 @@
 - *Métrica calculada:* Mediana da razão de issues fechadas
 - *Esperado:* > 70% (0.7)
 - *Obtido:* 86.79% (0.87)
-- *Status:* Confirmada
+- *Status:* ✓ Confirmada
 
 
 ## Estatisticas Gerais
