@@ -200,6 +200,8 @@ class ReportGenerator:
         total = len(self.repositories)
 
         rows = []
+        rows.append("| Linguagem | Contagem | Porcentagem |")
+        rows.append("|-----------|----------|-------------|")
         for lang, count in languages.most_common(15):
             percentage = (count / total) * 100
             rows.append(f"| {lang} | {count} | {percentage:.1f}% |")

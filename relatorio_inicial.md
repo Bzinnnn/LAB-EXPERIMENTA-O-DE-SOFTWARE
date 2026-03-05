@@ -1,7 +1,7 @@
 # Analise de Repositorios Populares do GitHub
 ## Relatorio Inicial - Sprint 2
 
-**Data de Coleta:** 05/03/2026 15:57:30
+**Data de Coleta:** 05/03/2026 16:11:05
 **Total de Repositorios Analisados:** 1000
 
 ## Hipoteses Iniciais:
@@ -62,9 +62,8 @@
 - Razao issues fechadas mediana: 86.79%
 
 ## Distribuicao de Linguagens (Top 15)
-
-| Linguagem | Repositórios | Percentual |
-| --- | --- | --- |
+| Linguagem | Contagem | Porcentagem |
+|-----------|----------|-------------|
 | Python | 200 | 20.0% |
 | TypeScript | 160 | 16.0% |
 | JavaScript | 115 | 11.5% |
