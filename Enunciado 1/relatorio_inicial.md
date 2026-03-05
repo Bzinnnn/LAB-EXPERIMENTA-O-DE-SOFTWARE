@@ -1,7 +1,7 @@
 # Analise de Repositorios Populares do GitHub
 ## Relatorio Inicial - Sprint 2
 
-**Data de Coleta:** 05/03/2026 15:57:30
+**Data de Coleta:** 05/03/2026 16:04:30
 **Total de Repositorios Analisados:** 1000
 
 ## Hipoteses Iniciais:
