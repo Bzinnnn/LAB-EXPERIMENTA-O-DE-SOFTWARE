@@ -5,6 +5,11 @@ import csv
 from typing import List, Dict
 from collections import Counter
 
+# Obter o diretório base do projeto
+PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+DATA_DIR = os.path.join(PROJECT_ROOT, 'data')
+DOCS_DIR = os.path.join(PROJECT_ROOT, 'docs')
+
 class ReportGenerator:
     
     def __init__(self):
@@ -47,10 +52,13 @@ class ReportGenerator:
             print(f"Erro ao carregar CSV: {str(e)}")
             return False
     
-    def generate_initial_report(self, output_file: str = "relatorio_inicial.md"):
+    def generate_initial_report(self, output_file: str = None):
         if not self.repositories:
             print("Nenhum repositorio para gerar relatorio")
             return
+        
+        if output_file is None:
+            output_file = os.path.join(DOCS_DIR, 'relatorio_inicial.md')
 
         stats = self._calculate_statistics()
         language_stats = self._analyze_by_language()
@@ -231,7 +239,7 @@ class ReportGenerator:
 def main():
     generator = ReportGenerator()
     
-    if generator.load_from_csv("repositorios_coletados.csv"):
+    if generator.load_from_csv(os.path.join(DATA_DIR, "repositorios_coletados.csv")):
         generator.generate_initial_report()
         print("\n✓ Relatório gerado com sucesso!")
     else:
