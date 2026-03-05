@@ -56,7 +56,7 @@ class ReportGenerator:
         language_stats = self._analyze_by_language()
 
         def rq_section(number, question, metric_desc, hypothesis, expected, actual):
-            status = "✓ Confirmada" if self._check_hypothesis(expected, actual) else "✗ Não confirmada"
+            status = "Confirmada" if self._check_hypothesis(expected, actual) else "Não confirmada"
             return (
                 f"### RQ{number}: {question}\n"
                 f"- *Hipótese:* {hypothesis}\n"
