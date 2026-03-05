@@ -62,6 +62,8 @@
 - Razao issues fechadas mediana: 86.79%
 
 ## Distribuicao de Linguagens (Top 15)
+| Linguagem | Contagem | Porcentagem |
+|-----------|----------|-------------|
 | Python | 200 | 20.0% |
 | TypeScript | 160 | 16.0% |
 | JavaScript | 115 | 11.5% |

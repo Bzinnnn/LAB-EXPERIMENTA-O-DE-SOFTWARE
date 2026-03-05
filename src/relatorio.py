@@ -64,7 +64,7 @@ class ReportGenerator:
         language_stats = self._analyze_by_language()
 
         def rq_section(number, question, metric_desc, hypothesis, expected, actual):
-            status = "✓ Confirmada" if self._check_hypothesis(expected, actual) else "✗ Não confirmada"
+            status = "Confirmada" if self._check_hypothesis(expected, actual) else "Não confirmada"
             return (
                 f"### RQ{number}: {question}\n"
                 f"- *Hipótese:* {hypothesis}\n"
@@ -208,6 +208,8 @@ class ReportGenerator:
         total = len(self.repositories)
 
         rows = []
+        rows.append("| Linguagem | Contagem | Porcentagem |")
+        rows.append("|-----------|----------|-------------|")
         for lang, count in languages.most_common(15):
             percentage = (count / total) * 100
             rows.append(f"| {lang} | {count} | {percentage:.1f}% |")
