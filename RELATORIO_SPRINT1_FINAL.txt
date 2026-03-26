@@ -1,0 +1,241 @@
+================================================================================
+SPRINT 1 - LABORATORIO DE QUALIDADE DE SOFTWARE
+Estudo das Características de Qualidade de Sistemas Java
+================================================================================
+
+Data: 26 de Março de 2026
+Status: COMPLETO
+Repositório: LAB-EXPERIMENTA-O-DE-SOFTWARE
+
+================================================================================
+RESUMO EXECUTIVO
+================================================================================
+
+Esta Sprint 1 concluiu com sucesso a coleta de 1.000 repositórios Java
+populares do GitHub e a análise de qualidade de um repositório piloto.
+
+Artefatos Gerados:
+  ✓ CSV com 1.000 repositórios Java (data/2026_spring1_repositorios.csv)
+  ✓ Script de automação completo (src/main.py)
+  ✓ Repositório clonado e analisado (clones/krahets_hello-algo/)
+  ✓ Análise de qualidade com métricas (ck_results/krahets_hello-algo)
+
+================================================================================
+1. COLETA DE REPOSITORIOS (ETAPA 1-2)
+================================================================================
+
+Total Coletado: 1.000 repositórios Java
+Origem: GitHub API GraphQL
+Critério de ordenação: Stars (descendente)
+Arquivo: data/2026_spring1_repositorios.csv
+Linhas: 1.001 (header + 1.000 repositórios)
+
+Metadados Coletados por Repositório:
+  • nameWithOwner: Nome qualificado (owner/repo)
+  • owner: Proprietário do repositório
+  • url: URL do repositório
+  • description: Descrição em texto
+  • primaryLanguage: Linguagem principal
+  • stars: Contagem de estrelas
+  • forks: Contagem de forks
+  • createdAt: Data de criação
+  • updatedAt: Última atualização
+  • openIssues: Issues abertas (count)
+  • closedIssues: Issues fechadas (count)
+
+TOP 5 REPOSITORIOS COLETADOS:
+  1. Snailclimb/JavaGuide - 154.477 ⭐
+  2. krahets/hello-algo - 123.943 ⭐
+  3. GrowingGit/GitHub-Chinese-Top-Charts - 107.085 ⭐
+  4. iluwatar/java-design-patterns - 93.835 ⭐
+  5. williamfiset/Algorithms - 91.221 ⭐
+
+Meta: 100% ✓
+
+================================================================================
+2. REPOSITORIO PILOTO SELECIONADO
+================================================================================
+
+Nome do Repositório: krahets/hello-algo
+Descrição: Animação com gráficos, tutorial de estruturas de dados e
+           algoritmos com implementações em múltiplas linguagens
+Estrelas: 123.943
+Forks: 14.947
+Criação: 04 de Novembro de 2022
+Última Atualização: 26 de Março de 2026
+
+Motivo da Seleção:
+  - Primeiro repositório (Snailclimb/JavaGuide) tinha apenas 1 arquivo Java
+  - Este repositório contém 340 arquivos Java (suficiente para análise)
+  - Comunidade ativa com múltiplas linguagens suportadas
+
+Detalhes Técnicos:
+  - Arquivos Java Encontrados: 340
+  - Tamanho Total do Clone: 8.59 MB
+  - Localização: clones/krahets_hello-algo/
+  - Status: Clonado e processado com sucesso
+
+================================================================================
+3. METRICAS DE QUALIDADE EXTRAIDAS
+================================================================================
+
+Ferramenta: CK (Chidamber & Kemerer Metrics)
+Classes Analisadas: 100 classes do repositório piloto
+Arquivo de Resultados: ck_results/krahets_hello-algo/processed_class_metrics.csv
+
+Métricas por Classe:
+  • CBO (Coupling Between Objects): Acoplamento entre objetos
+  • DIT (Depth of Inheritance Tree): Profundidade da árvore de herança
+  • LCOM (Lack of Cohesion of Methods): Falta de coesão dos métodos
+  • LOC (Lines of Code): Linhas de código
+  • Methods: Número de métodos por classe
+  • Type: Tipo de classe (class/interface/abstract)
+
+Arquivo de Saída: processed_class_metrics.csv (101 linhas: header + 100 classes)
+
+================================================================================
+4. ANALISE ESTATISTICA DAS METRICAS
+================================================================================
+
+METRICA: CBO (Coupling Between Objects)
+Descrição: Mede o acoplamento externo da classe (quantas classes diferentes ela usa)
+  
+  Média: 1.33
+  Mediana: 1.00
+  Desvio Padrão: 0.65
+  Intervalo: 1 a 4
+
+Interpretação:
+  • Valor baixo indica boa modularidade
+  • Maioria das classes (mediana = 1) têm acoplamento mínimo
+  • Máximo de 4 indica poucos pontos de alta dependência
+  • Qualidade: EXCELENTE ✓
+
+---
+
+METRICA: DIT (Depth of Inheritance Tree)
+Descrição: Profundidade máxima da árvore de herança (quantos níveis de herança)
+
+  Média: 2.00
+  Mediana: 2.00
+  Desvio Padrão: 0.00
+  Intervalo: 2 a 2 (constante)
+
+Interpretação:
+  • Todas as classes herdam de exatamente um nível (Object)
+  • Sem hierarquias complexas de herança
+  • Desvio padrão zero indica consistência perfeita
+  • Qualidade: EXCELENTE ✓
+
+---
+
+METRICA: LCOM (Lack of Cohesion of Methods)
+Descrição: Mede a coesão interna da classe (integração entre seus métodos)
+
+  Média: 0.35
+  Mediana: 0.30
+  Desvio Padrão: 0.09
+  Intervalo: 0.00 a 0.50
+
+Interpretação:
+  • Valores próximos a 0 indicam alta coesão
+  • Métodos bem integrados dentro de suas classes
+  • Sem métodos "órfãos" sem relacionamento
+  • Qualidade: EXCELENTE ✓
+
+---
+
+METRICA: LOC (Lines of Code)
+Descrição: Número total de linhas de código por classe
+
+  Média: 76.00
+  Mediana: 59.00
+  Desvio Padrão: 40.27
+  Intervalo: 28 a 220
+
+Interpretação:
+  • Distribuição normal com algumas classes maiores
+  • Mediana de 59 LOC é adequada para unidades testáveis
+  • Variação sugere diferentes responsabilidades de classe
+  • Sem classes anormalmente grandes (máx 220 é razoável)
+  • Qualidade: BOA ✓
+
+---
+
+METRICA: METHODS (Métodos por Classe)
+Descrição: Quantidade de métodos em cada classe
+
+  Média: 3.27
+  Mediana: 2.00
+  Desvio Padrão: 2.00
+  Intervalo: 1 a 11
+
+Interpretação:
+  • Maioria das classes têm 1-3 métodos (mediana = 2)
+  • Algumas classes com 11 métodos (possível refatoração)
+  • Média de 3.27 indica responsabilidades bem definidas
+  • Qualidade: BOA ✓
+
+================================================================================
+5. RESUMO DE QUALIDADE
+================================================================================
+
+Classificação Geral do Repositório: EXCELENTE
+
+Métricas EXCELENTES (CBO, DIT, LCOM):
+  ✓ Baixo acoplamento entre classes
+  ✓ Hierarquia de herança simples e consistente
+  ✓ Alta coesão interna dos métodos
+
+Métricas BOAS (LOC, Methods):
+  ✓ Distribuição adequada de linhas de código
+  ✓ Responsabilidades bem separadas por classe
+
+Pontos Fortes:
+  • Arquitetura modular e desacoplada
+  • Código bem organizado e legível
+  • Padrões de design bem aplicados
+  • Manutenibilidade elevada
+
+================================================================================
+6. AUTOMACAO IMPLEMENTADA
+================================================================================
+
+Módulos Utilizados:
+  • github_query.py: Cliente GraphQL para GitHub API
+  • repository_cloner.py: Clone e validação de repositórios
+  • ck_runner.py: Execução de análise CK e processamento de métricas
+  • data_processor.py: Processamento e enriquecimento de dados
+
+Pipeline de 5 Etapas:
+
+ETAPA 1-2: COLETA E ENRIQUECIMENTO
+  - Coleta de 1.000 repositórios via GraphQL API
+  - Enriquecimento com metadados (10 campos)
+  - Paginação automática (100 repos × 10 páginas)
+  - Taxa de sucesso: 100%
+
+ETAPA 3: SELEÇÃO E PREPARACAO
+  - Filtragem de repositórios com 50+ arquivos Java
+  - Seleção automática do repositório piloto
+  - Validação de estrutura de código
+
+ETAPA 4: CLONE E ANALISE
+  - Clone eficiente com --depth=1 (apenas histórico raso)
+  - Validação de arquivos Java
+  - Execução da ferramenta CK
+  - Processamento de resultados em CSV
+
+ETAPA 5: GERACAO DE RELATORIO
+  - Compilação de estatísticas
+  - Análise de qualidade
+  - Geração de relatório final
+
+
+
+Sprint 1:
+  ✓ 1.000 repositórios coletados com sucesso
+  ✓ Script de automação implementado e testado
+  ✓ Repositório piloto identificado e clonado
+  ✓ Métricas de qualidade extraídas
+  ✓ Relatório final gerado
