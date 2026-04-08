@@ -6,7 +6,7 @@ from typing import Dict, List, Optional
 from pathlib import Path
 
 class RepositoryCloner:
-    """Gerencia clonagem e análise de repositórios"""
+    """Gerencia clonagem e análise de repositórios Java"""
     
     def __init__(self, base_clone_dir: str = "clones"):
         self.base_clone_dir = base_clone_dir
@@ -26,14 +26,13 @@ class RepositoryCloner:
         """
         clone_path = os.path.join(self.base_clone_dir, repo_name)
         
-        # Se já existe, pular
         if os.path.exists(clone_path):
-            print(f"  ✓ Repositório já clonado: {clone_path}")
+            print(f"  Repositório já está clonado em: {clone_path}")
             return clone_path
         
         for attempt in range(max_retries):
             try:
-                print(f"  Clonando: {repo_url} (tentativa {attempt + 1}/{max_retries})...")
+                print(f"  Clonando repositório: {repo_url} (tentativa {attempt + 1}/{max_retries})...")
                 
                 cmd = ["git", "clone", "--depth", "1", repo_url, clone_path]
                 result = subprocess.run(
@@ -44,22 +43,22 @@ class RepositoryCloner:
                 )
                 
                 if result.returncode == 0:
-                    print(f"  ✓ Clonado com sucesso: {clone_path}")
+                    print(f"  Clone realizado com sucesso: {clone_path}")
                     return clone_path
                 else:
-                    print(f"    Erro: {result.stderr.strip()}")
+                    print(f"    [ERRO] Falha ao clonar: {result.stderr.strip()}")
             
             except subprocess.TimeoutExpired:
-                print(f"    Timeout na tentativa {attempt + 1}")
+                print(f"    [ERRO] Tempo esgotado na tentativa {attempt + 1}")
             except Exception as e:
-                print(f"    Erro: {e}")
+                print(f"    [ERRO] {e}")
             
             if attempt < max_retries - 1:
                 wait_time = (attempt + 1) * 5
-                print(f"    Aguardando {wait_time}s antes de tentar novamente...")
+                print(f"    Aguardando {wait_time} segundos para tentar novamente...")
                 time.sleep(wait_time)
         
-        print(f"  ✗ Falha ao clonar após {max_retries} tentativas")
+        print(f"  [ERRO] Não foi possível clonar após {max_retries} tentativas.")
         return None
     
     def cleanup_repository(self, repo_name: str) -> bool:
@@ -77,10 +76,10 @@ class RepositoryCloner:
         try:
             if os.path.exists(clone_path):
                 shutil.rmtree(clone_path)
-                print(f"  ✓ Repositório removido: {clone_path}")
+                print(f"  Repositório removido: {clone_path}")
                 return True
         except Exception as e:
-            print(f"  ✗ Erro ao remover repositório: {e}")
+            print(f"  [ERRO] Falha ao remover repositório: {e}")
         
         return False
     
@@ -106,7 +105,7 @@ class RepositoryCloner:
                     if os.path.exists(filepath):
                         total_size += os.path.getsize(filepath)
         except Exception as e:
-            print(f"  Erro ao calcular tamanho: {e}")
+            print(f"  [ERRO] Falha ao calcular tamanho do repositório: {e}")
         
         return total_size / (1024 * 1024)
     
@@ -129,7 +128,7 @@ class RepositoryCloner:
                 
                 java_count += sum(1 for f in filenames if f.endswith('.java'))
         except Exception as e:
-            print(f"  Erro ao contar arquivos Java: {e}")
+            print(f"  [ERRO] Falha ao contar arquivos Java: {e}")
         
         return java_count
     

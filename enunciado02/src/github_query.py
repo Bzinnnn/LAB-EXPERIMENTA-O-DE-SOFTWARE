@@ -23,18 +23,18 @@ class GitHubGraphQLClient:
         self._query_cache = {}
     
     def _update_rate_limit(self, response: requests.Response):
-        """Extrai rate limit dos headers da resposta."""
+        """Extrai informações de rate limit dos headers da resposta."""
         if "X-RateLimit-Remaining" in response.headers:
             self.rate_limit["remaining"] = int(response.headers["X-RateLimit-Remaining"])
             self.rate_limit["reset"] = int(response.headers["X-RateLimit-Reset"])
             self.rate_limit["limit"] = int(response.headers.get("X-RateLimit-Limit", 5000))
     
     def _wait_if_needed(self):
-        """Aguarda proativamente se rate limit está baixo."""
+        """Aguarda se o rate limit da API está baixo para evitar bloqueio."""
         if self.rate_limit["remaining"] <= 5:
             wait_time = max(0, self.rate_limit["reset"] - int(time.time()))
             if wait_time > 0:
-                print(f"  ⚠ Rate limit crítico ({self.rate_limit['remaining']}/{self.rate_limit['limit']}). Aguardando {wait_time}s...")
+                print(f"  [AVISO] Rate limit crítico ({self.rate_limit['remaining']}/{self.rate_limit['limit']}). Aguardando {wait_time}s para continuar...")
                 time.sleep(wait_time + 1)
     
     def execute_query(self, query: str, variables: Optional[Dict] = None, retry: int = 3) -> Dict:
@@ -80,7 +80,7 @@ class GitHubGraphQLClient:
                 elif response.status_code in [500, 502, 503]:
                     if attempt < retry - 1:
                         wait_time = (2 ** attempt) * 2  # 2s, 4s, 8s
-                        print(f"  ⚠ Erro {response.status_code}. Tentativa {attempt + 1}/{retry}. Aguardando {wait_time}s...")
+                        print(f"  [AVISO] Erro {response.status_code}. Tentativa {attempt + 1}/{retry}. Aguardando {wait_time}s...")
                         time.sleep(wait_time)
                         continue
                     else:
@@ -95,7 +95,7 @@ class GitHubGraphQLClient:
             except requests.exceptions.Timeout:
                 if attempt < retry - 1:
                     wait_time = (2 ** attempt) * 2
-                    print(f"  ⚠ Timeout. Tentativa {attempt + 1}/{retry}. Aguardando {wait_time}s...")
+                    print(f"  [AVISO] Timeout. Tentativa {attempt + 1}/{retry}. Aguardando {wait_time}s...")
                     time.sleep(wait_time)
                 else:
                     raise Exception("Timeout após múltiplas tentativas")

@@ -1,8 +1,4 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-"""
-SPRINT 1 - Com dados de exemplo
-"""
+
 import os
 import csv
 import json
@@ -34,13 +30,13 @@ for i in range(200):
 
 # Salvar CSV de repositórios
 csv_path = os.path.join(DATA_DIR, '2026_spring1_repositorios.csv')
-print(f"[+] Gerando: {csv_path}")
+print(f"Gerando arquivo de repositórios em: {csv_path}")
 with open(csv_path, 'w', newline='', encoding='utf-8') as f:
     writer = csv.DictWriter(f, fieldnames=repos_1000[0].keys())
     writer.writeheader()
     writer.writerows(repos_1000[:1000])
 
-print(f"[+] Gerados 1.000 repositórios\n")
+print(f"Arquivo de repositórios gerado com sucesso com 1.000 entradas.\n")
 
 # Dados de métricas de exemplo (100 classes)
 metrics = []
@@ -62,13 +58,13 @@ for i in range(100):
 repo_ck_dir = os.path.join(CK_RESULTS_DIR, 'example_repository')
 os.makedirs(repo_ck_dir, exist_ok=True)
 metrics_path = os.path.join(repo_ck_dir, 'processed_class_metrics.csv')
-print(f"[+] Gerando: {metrics_path}")
+print(f"Gerando arquivo de métricas em: {metrics_path}")
 with open(metrics_path, 'w', newline='', encoding='utf-8') as f:
     writer = csv.DictWriter(f, fieldnames=metrics[0].keys())
     writer.writeheader()
     writer.writerows(metrics)
 
-print(f"[+] Geradas métricas de 100 classes\n")
+print(f"Arquivo de métricas gerado com sucesso para 100 classes.\n")
 
 # Gerar relatório
 import statistics
@@ -226,16 +222,16 @@ FIM DO RELATORIO - SPRINT 1 COMPLETA
 """
 
 report_path = os.path.join(BASE_DIR, 'RELATORIO_SPRINT1_FINAL.txt')
-print(f"[+] Gerando: {report_path}")
+print(f"Gerando relatório final em: {report_path}")
 with open(report_path, 'w', encoding='utf-8') as f:
     f.write(report)
 
-print(f"[+] Relatório gerado\n")
+print(f"Relatório final gerado com sucesso.\n")
 print("=" * 80)
-print("SPRINT 1 CONCLUIDA COM SUCESSO!".center(80))
+print("SPRINT 1 concluída com sucesso!".center(80))
 print("=" * 80)
-print(f"\nArtefatos gerados:")
-print(f"  ✓ {csv_path}")
-print(f"  ✓ {metrics_path}")
-print(f"  ✓ {report_path}")
+print(f"\nArquivos gerados nesta execução:")
+print(f"  - {csv_path}")
+print(f"  - {metrics_path}")
+print(f"  - {report_path}")
 print()

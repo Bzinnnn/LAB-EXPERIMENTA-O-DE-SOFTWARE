@@ -1,7 +1,12 @@
 import csv
 import statistics
+from pathlib import Path
 
-with open('ck_results/krahets_hello-algo/processed_class_metrics.csv', 'r') as f:
+
+BASE_DIR = Path(__file__).resolve().parent
+METRICS_FILE = BASE_DIR / 'ck_results' / 'krahets_hello-algo' / 'processed_class_metrics.csv'
+
+with METRICS_FILE.open('r', encoding='utf-8') as f:
     reader = csv.DictReader(f)
     data = list(reader)
 

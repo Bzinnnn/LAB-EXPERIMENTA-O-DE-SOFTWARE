@@ -7,20 +7,18 @@ from typing import List, Dict, Tuple
 from pathlib import Path
 
 class CKRunner:
-    """Gerencia a execução da ferramenta CK para análise de qualidade de código Java"""
+    """Executa a ferramenta CK para análise de qualidade de código Java"""
     
     def __init__(self, ck_jar_path: str = None):
         """
         Inicializa o CKRunner.
-        
-        Args:
-            ck_jar_path: Caminho para o JAR do CK. Se None, tenta encontrar automaticamente.
+        ck_jar_path: Caminho para o JAR do CK. Se None, tenta encontrar automaticamente.
         """
         self.ck_jar_path = ck_jar_path or self._find_ck_jar()
         self.ck_available = os.path.exists(self.ck_jar_path) if self.ck_jar_path else False
     
     def _find_ck_jar(self) -> str:
-        """Tenta encontrar o CK automaticamente"""
+        """Tenta encontrar o CK automaticamente no sistema"""
         possible_paths = [
             "ck-0.7.1-SNAPSHOT-jar-with-dependencies.jar",
             "ck.jar",
@@ -45,7 +43,7 @@ class CKRunner:
         """
         import requests
         
-        # Tentar múltiplas URLs do CK
+        # Tenta baixar de múltiplas URLs do CK
         urls = [
             "https://github.com/mauricioaniche/ck/releases/download/v0.7.1/ck-0.7.1-SNAPSHOT-jar-with-dependencies.jar",
             "https://github.com/mauricioaniche/ck/releases/download/v0.6.0/ck-0.6.0-SNAPSHOT-jar-with-dependencies.jar",
@@ -55,7 +53,7 @@ class CKRunner:
         jar_path = os.path.join(output_dir, "ck-jar-with-dependencies.jar")
         
         for url in urls:
-            print(f"  Tentando baixar CK de {url}...")
+            print(f"  Baixando CK de {url}...")
             
             try:
                 response = requests.get(url, stream=True, timeout=30)
@@ -67,14 +65,14 @@ class CKRunner:
                 
                 self.ck_jar_path = jar_path
                 self.ck_available = True
-                print(f"  ✓ CK baixado com sucesso em: {jar_path}")
+                print(f"  CK baixado com sucesso em: {jar_path}")
                 return True
             
             except Exception as e:
-                print(f"    ✗ Falha: {str(e)[:80]}")
+                print(f"    Falha ao baixar: {str(e)[:80]}")
                 continue
         
-        print(f"  ✗ Não foi possível baixar CK de nenhuma URL")
+        print(f"  Não foi possível baixar CK de nenhuma das URLs testadas.")
         return False
     
     def analyze_repository(self, repo_path: str, output_dir: str) -> Dict:
@@ -89,16 +87,16 @@ class CKRunner:
             Dicionário com os caminhos dos arquivos CSV gerados
         """
         if not self.ck_available:
-            print("⚠ CK não está disponível. Criando relatório sem análise completa...")
+            print("[AVISO] CK não está disponível. Será criado um relatório simulado.")
             return self._create_fallback_report(repo_path, output_dir)
         
         if not os.path.exists(repo_path):
-            print(f"✗ Repositório não encontrado: {repo_path}")
+            print(f"[ERRO] Repositório não encontrado: {repo_path}")
             return {}
         
         os.makedirs(output_dir, exist_ok=True)
         
-        print(f"  Executando CK em: {repo_path}")
+        print(f"  Executando CK no repositório: {repo_path}")
         
         try:
             cmd = ["java", "-jar", self.ck_jar_path, repo_path, "false", "0", output_dir]
@@ -111,7 +109,7 @@ class CKRunner:
             )
             
             if result.returncode != 0:
-                print(f"  ✗ CK retornou erro: {result.stderr}")
+                print(f"  [ERRO] CK retornou erro: {result.stderr}")
                 return {}
             
             # Localizar arquivos gerados pelo CK
@@ -121,14 +119,14 @@ class CKRunner:
                     filepath = os.path.join(output_dir, file)
                     output_files[file] = filepath
             
-            print(f"  ✓ CK executado com sucesso. Arquivos gerados: {list(output_files.keys())}")
+            print(f"  CK executado com sucesso. Arquivos gerados: {list(output_files.keys())}")
             return output_files
         
         except subprocess.TimeoutExpired:
-            print(f"  ✗ CK timeout após 300 segundos")
+            print(f"  [ERRO] CK demorou demais e foi interrompido (timeout de 300 segundos)")
             return {}
         except Exception as e:
-            print(f"  ✗ Erro ao executar CK: {e}")
+            print(f"  [ERRO] Falha ao executar CK: {e}")
             return {}
     
     @staticmethod
@@ -139,7 +137,7 @@ class CKRunner:
         """
         os.makedirs(output_dir, exist_ok=True)
         
-        # Escanear arquivos Java
+        # Escaneia arquivos Java
         java_classes = []
         for root, dirs, files in os.walk(repo_path):
             if '.git' in dirs:
@@ -149,7 +147,7 @@ class CKRunner:
                     filepath = os.path.join(root, file)
                     java_classes.append(filepath)
         
-        # Criar CSV com métricas simuladas (baseadas em contagem de linhas)
+        # Cria CSV com métricas simuladas (baseadas em contagem de linhas)
         class_metrics = []
         for java_file in java_classes[:100]:  # Limite a 100 classes para não ficar muito lento
             try:
@@ -179,9 +177,9 @@ class CKRunner:
                 writer = csv.DictWriter(f, fieldnames=fieldnames)
                 writer.writeheader()
                 writer.writerows(class_metrics)
-            print(f"  ✓ Relatório fallback criado: {csv_path}")
-            print(f"    - {len(java_classes)} arquivos Java encontrados")
-            print(f"    - {len(class_metrics)} classes analisadas (simulado)")
+            print(f"  Relatório simulado criado: {csv_path}")
+            print(f"    Total de arquivos Java encontrados: {len(java_classes)}")
+            print(f"    Total de classes analisadas (simulado): {len(class_metrics)}")
         
         return {'processed_class_metrics.csv': csv_path}
     
