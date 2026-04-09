@@ -1,8 +1,3 @@
-"""
-LAB02 Pipeline — Coleta, análise CK, consolidação, relatório e gráficos.
-Otimizado para reutilizar dados existentes e produzir relatório completo.
-"""
-
 import csv
 import os
 import time
@@ -27,7 +22,6 @@ OUTPUT_DIR = ROOT / "output"
 QUALITY_SUMMARY_CSV = DATA_DIR / "lab02_repo_quality_summary.csv"
 
 
-# ── Helpers ──────────────────────────────────────────────────────────────
 @dataclass
 class RepoStats:
     name_with_owner: str
@@ -45,10 +39,10 @@ def parse_iso_datetime(value: str) -> datetime:
     return datetime.fromisoformat(value.replace("Z", "+00:00"))
 
 
-def to_float(value) -> Optional[float]:
-    if value is None:
+def to_float(raw_value) -> Optional[float]:
+    if raw_value is None:
         return None
-    text = str(value).strip().replace(",", ".")
+    text = str(raw_value).strip().replace(",", ".")
     if not text or text.lower() in ("", "nan", "none"):
         return None
     try:
@@ -70,9 +64,7 @@ def safe_stats(values: List[float]) -> Dict[str, float]:
     }
 
 
-# ── Localizar CSV CK existente (múltiplas convenções) ────────────────────
 def find_ck_class_csv(clone_dir: str) -> Optional[Path]:
-    """Busca CSV de métricas de classe CK em múltiplas localizações."""
     candidates = [
         CK_DIR / clone_dir / "processed_class_metrics.csv",
         CK_DIR / clone_dir / "class.csv",
@@ -88,7 +80,6 @@ def find_ck_class_csv(clone_dir: str) -> Optional[Path]:
 
 
 def aggregate_ck_metrics(ck_csv_path: Optional[Path]) -> Dict[str, Optional[float]]:
-    """Agrega métricas CK (media) a partir de um CSV de classe."""
     defaults = {
         "cbo_mean": None, "dit_mean": None, "lcom_mean": None,
         "loc_mean": None, "methods_mean": None, "loc_sum": 0,
@@ -102,7 +93,6 @@ def aggregate_ck_metrics(ck_csv_path: Optional[Path]) -> Dict[str, Optional[floa
             reader = csv.DictReader(fp)
             if not reader.fieldnames:
                 return defaults
-            # Map columns — CK usa lowercase; fallback usa lowercase também
             col_map = {}
             for key in values:
                 for col in reader.fieldnames:
@@ -165,11 +155,6 @@ def java_loc_and_comments(repo_path: Path) -> Dict[str, int]:
             continue
 
     return {"loc": total_loc, "comments": total_comments}
-
-
-# ══════════════════════════════════════════════════════════════════════════
-# 1. COLETA DE REPOSITÓRIOS
-# ══════════════════════════════════════════════════════════════════════════
 def collect_top_repositories(token: str, target: int) -> Path:
     DATA_DIR.mkdir(parents=True, exist_ok=True)
     output_csv = DATA_DIR / "lab02_repositories.csv"
@@ -232,17 +217,10 @@ def collect_top_repositories(token: str, target: int) -> Path:
             writer.writerows(repositories)
     print(f"[collect] CSV salvo: {output_csv} ({len(repositories)} repos)")
     return output_csv
-
-
-# ══════════════════════════════════════════════════════════════════════════
-# 2. ENRIQUECIMENTO COM RELEASES
-# ══════════════════════════════════════════════════════════════════════════
 def enrich_with_releases(repositories_csv: Path, token: str) -> None:
-    """Enriquece o CSV de repositórios com contagem real de releases via GraphQL."""
     with repositories_csv.open("r", encoding="utf-8") as fp:
         rows = list(csv.DictReader(fp))
 
-    # Verificar se já tem releases válidos
     has_releases = any(int(r.get("releases", 0) or 0) > 0 for r in rows)
     if has_releases:
         print("[releases] CSV ja tem releases preenchidos. Pulando enriquecimento.")
@@ -275,11 +253,6 @@ def enrich_with_releases(repositories_csv: Path, token: str) -> None:
         writer.writerows(rows)
 
     print(f"[releases] {updated} repositorios com releases > 0. CSV atualizado.")
-
-
-# ══════════════════════════════════════════════════════════════════════════
-# 3. ANÁLISE PILOTO
-# ══════════════════════════════════════════════════════════════════════════
 def run_pilot_ck(repositories_csv: Path, min_java_files: int = 50) -> Optional[str]:
     CLONES_DIR.mkdir(parents=True, exist_ok=True)
     cloner = RepositoryCloner(str(CLONES_DIR))
@@ -291,7 +264,6 @@ def run_pilot_ck(repositories_csv: Path, min_java_files: int = 50) -> Optional[s
             repo_name = row["nameWithOwner"]
             clone_dir = repo_name.replace("/", "_")
 
-            # Já tem CK?
             existing = find_ck_class_csv(clone_dir)
             if existing:
                 print(f"[pilot] Repositorio piloto ja analisado: {repo_name} ({existing})")
@@ -318,9 +290,6 @@ def run_pilot_ck(repositories_csv: Path, min_java_files: int = 50) -> Optional[s
     return None
 
 
-# ══════════════════════════════════════════════════════════════════════════
-# 4. ANÁLISE DE QUALIDADE PARA TODOS OS REPOSITÓRIOS
-# ══════════════════════════════════════════════════════════════════════════
 def run_quality_for_all_repositories(
     repositories_csv: Path,
     max_repositories: Optional[int] = None,
@@ -358,7 +327,6 @@ def run_quality_for_all_repositories(
         if failed_marker.exists():
             return {"status": "failed_ck", "record": None}
 
-        # ── Tentar reutilizar CK existente ──
         existing_csv = find_ck_class_csv(clone_dir)
         if existing_csv:
             ck_metrics = aggregate_ck_metrics(existing_csv)
@@ -386,22 +354,18 @@ def run_quality_for_all_repositories(
 
         java_count = shared_cloner.count_java_files(clone_path)
         if java_count < min_java_files:
-            # Limpar clone de repo sem Java
             shared_cloner.cleanup_repository(clone_dir)
             return {"status": "skipped_no_java", "record": None}
 
         out_dir = CK_DIR / clone_dir
         out_dir.mkdir(parents=True, exist_ok=True)
 
-        # LOC antes de potencialmente falhar no CK
         size_info = java_loc_and_comments(Path(clone_path))
 
         shared_ck.analyze_repository(clone_path, str(out_dir))
 
-        # Limpar clone após CK (libera disco)
         shared_cloner.cleanup_repository(clone_dir)
 
-        # Verificar resultado
         result_csv = find_ck_class_csv(clone_dir)
         if result_csv:
             ck_metrics = aggregate_ck_metrics(result_csv)
@@ -461,7 +425,6 @@ def run_quality_for_all_repositories(
             if index % 20 == 0 or index == total:
                 print(f"[quality] Progresso: {index}/{total} | analisados={summary.get('analyzed',0)} reusados={summary.get('reused',0)} erros={summary.get('failed_ck',0)+summary.get('skipped_clone_error',0)}")
 
-            # Salvar progresso parcial a cada 50 repos
             if index % 50 == 0 and records:
                 _save_quality_summary(records)
 
@@ -480,11 +443,6 @@ def _save_quality_summary(records: List[Dict]) -> None:
         writer = csv.DictWriter(fp, fieldnames=fieldnames)
         writer.writeheader()
         writer.writerows(records)
-
-
-# ══════════════════════════════════════════════════════════════════════════
-# 5. CONSOLIDAÇÃO
-# ══════════════════════════════════════════════════════════════════════════
 def consolidate_dataset(repositories_csv: Path) -> Path:
     output = DATA_DIR / "lab02_consolidado.csv"
 
@@ -493,7 +451,6 @@ def consolidate_dataset(repositories_csv: Path) -> Path:
         output.write_text(QUALITY_SUMMARY_CSV.read_text(encoding="utf-8"), encoding="utf-8")
         return output
 
-    # Fallback: construir consolidado a partir do CSV de repositórios
     now = datetime.now(timezone.utc)
     rows_out: List[Dict] = []
     with repositories_csv.open("r", encoding="utf-8") as fp:
@@ -547,11 +504,6 @@ def consolidate_dataset(repositories_csv: Path) -> Path:
 
     print(f"[consolidate] CSV consolidado salvo: {output} ({len(rows_out)} repos)")
     return output
-
-
-# ══════════════════════════════════════════════════════════════════════════
-# 6. CORRELAÇÃO / ESTATÍSTICAS
-# ══════════════════════════════════════════════════════════════════════════
 def corr_text(x: List[float], y: List[float]) -> str:
     if len(x) < 3 or len(y) < 3:
         return "amostra insuficiente"
@@ -559,7 +511,6 @@ def corr_text(x: List[float], y: List[float]) -> str:
         from scipy.stats import spearmanr
     except ModuleNotFoundError:
         return "scipy nao instalado"
-    # Alinhar tamanhos
     n = min(len(x), len(y))
     corr, p = spearmanr(x[:n], y[:n])
     sig = "significativo" if p < 0.05 else "nao significativo"
@@ -582,11 +533,6 @@ def load_repo_stats(consolidated_csv: Path) -> List[RepoStats]:
                 lcom_mean=to_float(row.get("lcomMean")),
             ))
     return rows
-
-
-# ══════════════════════════════════════════════════════════════════════════
-# 7. RELATÓRIO MARKDOWN COMPLETO
-# ══════════════════════════════════════════════════════════════════════════
 def generate_markdown_report(consolidated_csv: Path, report_path: Path) -> None:
     repos = load_repo_stats(consolidated_csv)
     quality = [r for r in repos if r.cbo_mean is not None and r.dit_mean is not None and r.lcom_mean is not None]
@@ -594,7 +540,6 @@ def generate_markdown_report(consolidated_csv: Path, report_path: Path) -> None:
     total = len(repos)
     n_quality = len(quality)
 
-    # Métricas globais
     cbo_s = safe_stats([r.cbo_mean for r in quality])
     dit_s = safe_stats([r.dit_mean for r in quality])
     lcom_s = safe_stats([r.lcom_mean for r in quality])
@@ -603,7 +548,6 @@ def generate_markdown_report(consolidated_csv: Path, report_path: Path) -> None:
     rel_s = safe_stats([r.releases for r in quality])
     loc_s = safe_stats([r.loc for r in quality])
 
-    # Listas alinhadas para correlação
     stars = [r.stars for r in quality]
     maturity = [r.maturity_years for r in quality]
     releases = [r.releases for r in quality]
@@ -717,7 +661,6 @@ def generate_markdown_report(consolidated_csv: Path, report_path: Path) -> None:
         "Esperava-se que repositórios mais populares tivessem melhor qualidade (menor CBO e LCOM). ",
     ]
 
-    # Adicionar interpretação dinâmica
     try:
         from scipy.stats import spearmanr
         rho_star_cbo, p_star_cbo = spearmanr(stars, cbo)
@@ -812,11 +755,6 @@ def generate_markdown_report(consolidated_csv: Path, report_path: Path) -> None:
     report_path.parent.mkdir(parents=True, exist_ok=True)
     report_path.write_text("\n".join(lines), encoding="utf-8")
     print(f"[report] Relatorio salvo: {report_path}")
-
-
-# ══════════════════════════════════════════════════════════════════════════
-# 8. GRÁFICOS BÔNUS
-# ══════════════════════════════════════════════════════════════════════════
 def generate_bonus_plots(consolidated_csv: Path, plots_dir: Path) -> None:
     try:
         import pandas as pd
@@ -836,7 +774,6 @@ def generate_bonus_plots(consolidated_csv: Path, plots_dir: Path) -> None:
 
     plots_dir.mkdir(parents=True, exist_ok=True)
 
-    # Filtrar só repos com métricas de qualidade
     df_q = df.dropna(subset=["cboMean", "ditMean", "lcomMean"])
     if df_q.empty:
         print("[bonus] Sem dados de qualidade para graficos.")
@@ -844,13 +781,11 @@ def generate_bonus_plots(consolidated_csv: Path, plots_dir: Path) -> None:
 
     print(f"[bonus] Gerando graficos com {len(df_q)} repositorios...")
 
-    # ── Estilo global ──
     plt.rcParams.update({
         "figure.facecolor": "white", "axes.facecolor": "#f8f9fa",
         "axes.grid": True, "grid.alpha": 0.3, "font.size": 10,
     })
 
-    # ── Função auxiliar scatter ──
     def scatter_plot(x_col, y_col, xlabel, ylabel, title, filename):
         data = df_q[[x_col, y_col]].dropna()
         if data.empty:
@@ -860,7 +795,6 @@ def generate_bonus_plots(consolidated_csv: Path, plots_dir: Path) -> None:
         ax.set_xlabel(xlabel, fontsize=12)
         ax.set_ylabel(ylabel, fontsize=12)
         ax.set_title(title, fontsize=14, fontweight="bold")
-        # Adicionar rho + p
         try:
             from scipy.stats import spearmanr
             rho, p = spearmanr(data[x_col], data[y_col])
@@ -872,27 +806,22 @@ def generate_bonus_plots(consolidated_csv: Path, plots_dir: Path) -> None:
         plt.savefig(plots_dir / filename, dpi=150, bbox_inches="tight")
         plt.close()
 
-    # ── RQ01: Popularidade ──
     scatter_plot("stars", "cboMean", "Stars", "CBO médio", "RQ01 — Popularidade vs CBO", "rq01_stars_vs_cbo.png")
     scatter_plot("stars", "ditMean", "Stars", "DIT médio", "RQ01 — Popularidade vs DIT", "rq01_stars_vs_dit.png")
     scatter_plot("stars", "lcomMean", "Stars", "LCOM médio", "RQ01 — Popularidade vs LCOM", "rq01_stars_vs_lcom.png")
 
-    # ── RQ02: Maturidade ──
     scatter_plot("maturityYears", "cboMean", "Maturidade (anos)", "CBO médio", "RQ02 — Maturidade vs CBO", "rq02_maturity_vs_cbo.png")
     scatter_plot("maturityYears", "ditMean", "Maturidade (anos)", "DIT médio", "RQ02 — Maturidade vs DIT", "rq02_maturity_vs_dit.png")
     scatter_plot("maturityYears", "lcomMean", "Maturidade (anos)", "LCOM médio", "RQ02 — Maturidade vs LCOM", "rq02_maturity_vs_lcom.png")
 
-    # ── RQ03: Atividade ──
     scatter_plot("releases", "cboMean", "Releases", "CBO médio", "RQ03 — Atividade vs CBO", "rq03_releases_vs_cbo.png")
     scatter_plot("releases", "ditMean", "Releases", "DIT médio", "RQ03 — Atividade vs DIT", "rq03_releases_vs_dit.png")
     scatter_plot("releases", "lcomMean", "Releases", "LCOM médio", "RQ03 — Atividade vs LCOM", "rq03_releases_vs_lcom.png")
 
-    # ── RQ04: Tamanho ──
     scatter_plot("sizeLoc", "cboMean", "LOC", "CBO médio", "RQ04 — Tamanho vs CBO", "rq04_loc_vs_cbo.png")
     scatter_plot("sizeLoc", "ditMean", "LOC", "DIT médio", "RQ04 — Tamanho vs DIT", "rq04_loc_vs_dit.png")
     scatter_plot("sizeLoc", "lcomMean", "LOC", "LCOM médio", "RQ04 — Tamanho vs LCOM", "rq04_loc_vs_lcom.png")
 
-    # ── Heatmap de correlação ──
     corr_cols = ["stars", "releases", "maturityYears", "sizeLoc", "cboMean", "ditMean", "lcomMean"]
     corr_data = df_q[corr_cols].dropna()
     if len(corr_data) >= 3:
@@ -904,7 +833,6 @@ def generate_bonus_plots(consolidated_csv: Path, plots_dir: Path) -> None:
         ax.set_yticks(range(len(labels)))
         ax.set_xticklabels(labels, rotation=45, ha="right")
         ax.set_yticklabels(labels)
-        # Anotar valores
         for i in range(len(labels)):
             for j in range(len(labels)):
                 ax.text(j, i, f"{corr.values[i, j]:.2f}", ha="center", va="center",
@@ -915,7 +843,6 @@ def generate_bonus_plots(consolidated_csv: Path, plots_dir: Path) -> None:
         plt.savefig(plots_dir / "heatmap_spearman.png", dpi=150, bbox_inches="tight")
         plt.close()
 
-    # ── Boxplot por quartis de popularidade ──
     if len(df_q) >= 4:
         df_q = df_q.copy()
         df_q["stars_quartile"] = pd.qcut(df_q["stars"], q=4, labels=["Q1 (menos popular)", "Q2", "Q3", "Q4 (mais popular)"], duplicates="drop")

@@ -7,8 +7,6 @@ from typing import Optional
 
 
 class RepositoryCloner:
-    """Gerencia clonagem, validacao e limpeza de repositorios Java."""
-
     def __init__(self, base_clone_dir: str = "clones"):
         self.base_clone_dir = base_clone_dir
         os.makedirs(base_clone_dir, exist_ok=True)
@@ -64,15 +62,14 @@ class RepositoryCloner:
                         func(path)
                     except Exception:
                         pass
-                
-                # Try to remove up to 5 times with delay
+
                 for attempt in range(5):
                     try:
                         shutil.rmtree(clone_path, onerror=on_rm_error)
                         return True
-                    except Exception as e:
+                    except Exception as exc:
                         if attempt == 4:
-                            print(f"  [ERRO] Falha ao remover repositorio apos 5 tentativas: {e}")
+                            print(f"  [ERRO] Falha ao remover repositorio apos 5 tentativas: {exc}")
                         time.sleep(2)
         except Exception as exc:
             print(f"  [ERRO] Falha ao remover repositorio: {exc}")

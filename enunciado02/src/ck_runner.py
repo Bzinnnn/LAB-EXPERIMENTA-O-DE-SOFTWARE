@@ -1,13 +1,10 @@
 import csv
 import os
-import statistics
 import subprocess
 from typing import Dict, List, Optional
 
 
 class CKRunner:
-    """Executa a ferramenta CK para metricas de qualidade em codigo Java."""
-
     def __init__(self, ck_jar_path: str = None, auto_download: bool = True):
         self.ck_jar_path = ck_jar_path or self._find_ck_jar()
         self.ck_available = bool(self.ck_jar_path and os.path.exists(self.ck_jar_path))
@@ -49,14 +46,12 @@ class CKRunner:
         return False
 
     def analyze_repository(self, repo_path: str, output_dir: str) -> Dict[str, str]:
-        """Executa CK e produz processed_class_metrics.csv no output_dir."""
         if not os.path.exists(repo_path):
             print(f"[ERRO] Repositorio nao encontrado: {repo_path}")
             return {}
 
         os.makedirs(output_dir, exist_ok=True)
 
-        # Já tem resultado processado?
         processed_csv = os.path.join(output_dir, "processed_class_metrics.csv")
         if os.path.exists(processed_csv) and os.path.getsize(processed_csv) > 100:
             return {"processed_class_metrics.csv": processed_csv}
@@ -69,7 +64,6 @@ class CKRunner:
             return self._create_fallback_report(repo_path, output_dir)
 
         try:
-            # Trailing separator garante que CK grava DENTRO do diretório
             out_dir_arg = output_dir.rstrip("/\\") + "/"
             cmd = ["java", "-jar", self.ck_jar_path, repo_path, "false", "0", "false", out_dir_arg]
             result = subprocess.run(cmd, capture_output=True, text=True, timeout=600)
@@ -78,10 +72,8 @@ class CKRunner:
                 print(f"[ERRO] CK falhou: {result.stderr[:300]}")
                 return self._create_fallback_report(repo_path, output_dir)
 
-            # CK gera class.csv dentro de output_dir
             class_csv = os.path.join(output_dir, "class.csv")
             if os.path.exists(class_csv) and os.path.getsize(class_csv) > 100:
-                # Renomear para processed_class_metrics.csv com retry
                 for attempt in range(5):
                     try:
                         import shutil
@@ -93,7 +85,6 @@ class CKRunner:
                 print(f"  CK executado com sucesso: {processed_csv}")
                 return {"processed_class_metrics.csv": processed_csv}
 
-            # Fallback: verificar se CK gerou com prefixo (sem trailing slash)
             parent_dir = os.path.dirname(output_dir.rstrip("/\\"))
             base_name = os.path.basename(output_dir.rstrip("/\\"))
             prefixed = os.path.join(parent_dir, f"{base_name}class.csv")

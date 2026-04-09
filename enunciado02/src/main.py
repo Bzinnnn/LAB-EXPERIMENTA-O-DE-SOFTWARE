@@ -1,8 +1,3 @@
-"""
-LAB02 - Ponto de entrada principal.
-Executa todo o fluxo: coleta -> releases -> piloto -> qualidade -> consolidacao -> relatorio -> graficos.
-"""
-
 import argparse
 import os
 import shutil
@@ -23,7 +18,6 @@ from lab02_pipeline import (
 
 
 def cleanup_generated_outputs(fresh: bool = False) -> None:
-    """Apaga artefatos gerados para que cada execucao recrie os relatorios do zero."""
     report_file = OUTPUT_DIR / "LAB02_RELATORIO_ESBOCO.md"
     plots_dir = OUTPUT_DIR / "plots"
     consolidated_csv = DATA_DIR / "lab02_consolidado.csv"
@@ -64,7 +58,7 @@ def main() -> None:
         args = parser.parse_args()
 
         print("\n" + "=" * 70)
-        print("  LAB02 -- Estudo de Qualidade de Repositorios Java")
+        print("  LAB02")
         print("=" * 70)
         print("Fluxo: coleta -> releases -> piloto -> qualidade -> consolidacao -> relatorio -> graficos\n")
 
@@ -72,14 +66,12 @@ def main() -> None:
 
         cleanup_generated_outputs(fresh=args.fresh)
 
-        # Carrega variaveis de ambiente
         env_path = DATA_DIR.parent / ".env"
         load_dotenv(env_path)
         token = os.getenv("GITHUB_TOKEN", "").strip()
         if not token:
             raise RuntimeError("GITHUB_TOKEN nao definido em .env")
 
-        # -- 1. Coleta dos repositorios --
         t = time.time()
         print("\n[1/7] Coleta dos repositorios...")
         repo_csv = collect_top_repositories(token=token, target=args.max_repos)
@@ -87,25 +79,21 @@ def main() -> None:
             raise FileNotFoundError(f"Arquivo nao encontrado: {repo_csv}")
         print(f"[1/7] Concluido em {_elapsed(t)}\n")
 
-        # -- 2. Enriquecimento com releases --
         t = time.time()
-        print("[2/7] Enriquecimento com releases (caso necessario)...")
+        print("[2/7] Enriquecimento com releases...")
         enrich_with_releases(repo_csv, token)
         print(f"[2/7] Concluido em {_elapsed(t)}\n")
 
-        # -- 3. Analise piloto --
         t = time.time()
         print("[3/7] Analise piloto...")
         pilot = run_pilot_ck(repo_csv)
         print(f"[3/7] Piloto: {pilot or 'nenhum'} em {_elapsed(t)}\n")
 
-        # -- 4. Analise de qualidade para toda a base --
         t = time.time()
         print("[4/7] Analise de qualidade para todos os repositorios...")
         run_quality_for_all_repositories(repo_csv, max_repositories=args.max_repos, min_java_files=1)
         print(f"[4/7] Concluido em {_elapsed(t)}\n")
 
-        # -- 5. Consolidacao dos dados --
         t = time.time()
         print("[5/7] Consolidacao...")
         consolidated_csv = consolidate_dataset(repo_csv)
@@ -113,13 +101,11 @@ def main() -> None:
             raise FileNotFoundError(f"Arquivo nao encontrado: {consolidated_csv}")
         print(f"[5/7] Concluido em {_elapsed(t)}\n")
 
-        # -- 6. Geracao do relatorio --
         t = time.time()
         print("[6/7] Geracao do relatorio...")
         generate_markdown_report(consolidated_csv, OUTPUT_DIR / "LAB02_RELATORIO_ESBOCO.md")
         print(f"[6/7] Concluido em {_elapsed(t)}\n")
 
-        # -- 7. Graficos bonus --
         t = time.time()
         print("[7/7] Graficos de correlacao (bonus)...")
         generate_bonus_plots(consolidated_csv, OUTPUT_DIR / "plots")
