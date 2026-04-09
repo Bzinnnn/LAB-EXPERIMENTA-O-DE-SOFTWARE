@@ -1,0 +1,26 @@
+
+     Size Path                                                                  
+     ---- ----                                                                  
+145744083 enunciado02/ck_results/aosp-mirror_platform_frameworks_base/method.csv
+ 69770676 enunciado02/ck_results/apache_camel/method.csv                        
+ 63101526 enunciado02/ck_results/LWJGL_lwjgl3/method.csv                        
+ 53872598 enunciado02/ck_results/apache_hadoop/method.csv                       
+ 49652682 enunciado02/ck_results/kubernetes-client_java/method.csv              
+ 47990398 enunciado02/ck_results/hazelcast_hazelcast/method.csv                 
+ 47044291 enunciado02/ck_results/hibernate_hibernate-orm/method.csv             
+ 46398023 enunciado02/ck_results/apache_hive/method.csv                         
+ 45144374 enunciado02/ck_results/apache_flinkmethod.csv                         
+ 40939950 enunciado02/ck_results/deeplearning4j_deeplearning4j/method.csv       
+ 38718649 enunciado02/ck_results/opensearch-project_OpenSearch/method.csv       
+ 36560295 enunciado02/ck_results/apache_ignite/method.csv                       
+ 34662413 enunciado02/ck_results/camunda_camunda/method.csv                     
+ 31181116 enunciado02/ck_results/spring-projects_spring-frameworkmethod.csv     
+ 30745600 enunciado02/ck_results/fabric8io_kubernetes-client/method.csv         
+ 26577825 enunciado02/ck_results/apache_iotdb/method.csv                        
+ 26210553 enunciado02/ck_results/apache_druid/method.csv                        
+ 25892706 enunciado02/ck_results/apache_incubator-kie-drools/method.csv         
+ 24879742 enunciado02/ck_results/apache_beam/method.csv                         
+ 24724770 enunciado02/ck_results/eugenp_tutorialsmethod.csv                     
+
+
+

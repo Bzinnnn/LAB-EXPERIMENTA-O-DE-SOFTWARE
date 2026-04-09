@@ -1,0 +1,2 @@
+enunciado02/ck_results/**/method.csv filter=lfs diff=lfs merge=lfs -text
+enunciado02/ck_results/**/*method.csv filter=lfs diff=lfs merge=lfs -text

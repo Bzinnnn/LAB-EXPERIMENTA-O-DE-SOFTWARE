@@ -1,0 +1,13 @@
+file,class,type,cbo,dit,lcom,loc,methods
+\src\main\java\com\seriouscompany\business\java\fizzbuzz\packagenamingpackage\interfaces\FizzBuzz.java,FizzBuzz,class,1,1,0,13,1
+\src\main\java\com\seriouscompany\business\java\fizzbuzz\packagenamingpackage\interfaces\strategies\FizzBuzzOutputStrategy.java,FizzBuzzOutputStrategy,class,1,1,0,16,1
+\src\main\java\com\seriouscompany\business\java\fizzbuzz\packagenamingpackage\interfaces\strategies\FizzBuzzSolutionStrategy.java,FizzBuzzSolutionStrategy,class,1,1,0,13,1
+\src\main\java\com\seriouscompany\business\java\fizzbuzz\packagenamingpackage\interfaces\strategies\IsEvenlyDivisibleStrategy.java,IsEvenlyDivisibleStrategy,class,1,1,0,14,1
+\src\main\java\com\seriouscompany\business\java\fizzbuzz\packagenamingpackage\interfaces\strategies\OutputGenerationStrategy.java,OutputGenerationStrategy,class,1,1,0,13,1
+\src\main\java\com\seriouscompany\business\java\fizzbuzz\packagenamingpackage\interfaces\strategies\SingleStepOutputGenerationParameter.java,SingleStepOutputGenerationParameter,class,1,1,0,13,1
+\src\main\java\com\seriouscompany\business\java\fizzbuzz\packagenamingpackage\interfaces\stringreturners\IntegerStringReturner.java,IntegerStringReturner,class,1,1,0,14,1
+\src\main\java\com\seriouscompany\business\java\fizzbuzz\packagenamingpackage\interfaces\stringreturners\StringStringReturner.java,StringStringReturner,class,1,1,0,13,1
+\src\main\java\com\seriouscompany\business\java\fizzbuzz\packagenamingpackage\interfaces\visitors\OutputGenerationContext.java,OutputGenerationContext,class,2,1,0,21,1
+\src\main\java\com\seriouscompany\business\java\fizzbuzz\packagenamingpackage\interfaces\visitors\OutputGenerationContextVisitor.java,OutputGenerationContextVisitor,class,1,1,0,14,1
+\src\test\java\FizzBuzzTest.java,FizzBuzzTest,class,12,1,0.43,87,3
+\src\test\java\TestConstants.java,TestConstants,class,1,1,0,45,1

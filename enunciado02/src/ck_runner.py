@@ -1,253 +1,163 @@
-import os
-import subprocess
-import shutil
 import csv
+import os
 import statistics
-from typing import List, Dict, Tuple
-from pathlib import Path
+import subprocess
+from typing import Dict, List, Optional
+
 
 class CKRunner:
-    """Executa a ferramenta CK para análise de qualidade de código Java"""
-    
-    def __init__(self, ck_jar_path: str = None):
-        """
-        Inicializa o CKRunner.
-        ck_jar_path: Caminho para o JAR do CK. Se None, tenta encontrar automaticamente.
-        """
+    """Executa a ferramenta CK para metricas de qualidade em codigo Java."""
+
+    def __init__(self, ck_jar_path: str = None, auto_download: bool = True):
         self.ck_jar_path = ck_jar_path or self._find_ck_jar()
-        self.ck_available = os.path.exists(self.ck_jar_path) if self.ck_jar_path else False
-    
+        self.ck_available = bool(self.ck_jar_path and os.path.exists(self.ck_jar_path))
+        if not self.ck_available and auto_download:
+            self.ck_available = self.download_ck()
+
     def _find_ck_jar(self) -> str:
-        """Tenta encontrar o CK automaticamente no sistema"""
         possible_paths = [
-            "ck-0.7.1-SNAPSHOT-jar-with-dependencies.jar",
+            os.path.join(os.path.dirname(os.path.dirname(__file__)), "ck-0.7.0-jar-with-dependencies.jar"),
+            "ck-0.7.0-jar-with-dependencies.jar",
             "ck.jar",
-            "/opt/ck/ck-0.7.1-SNAPSHOT-jar-with-dependencies.jar"
+            os.path.join("ck_results", "ck-jar-with-dependencies.jar"),
         ]
-        
         for path in possible_paths:
             if os.path.exists(path):
-                return path
-        
-        return None
-    
+                return os.path.abspath(path)
+        return ""
+
     def download_ck(self, output_dir: str = ".") -> bool:
-        """
-        Baixa a ferramenta CK (versão standalone).
-        
-        Args:
-            output_dir: Diretório onde salvar o CK
-        
-        Returns:
-            True se bem-sucedido, False caso contrário
-        """
         import requests
-        
-        # Tenta baixar de múltiplas URLs do CK
         urls = [
-            "https://github.com/mauricioaniche/ck/releases/download/v0.7.1/ck-0.7.1-SNAPSHOT-jar-with-dependencies.jar",
-            "https://github.com/mauricioaniche/ck/releases/download/v0.6.0/ck-0.6.0-SNAPSHOT-jar-with-dependencies.jar",
-            "https://github.com/mauricioaniche/ck/releases/download/v0.5.1/ck-0.5.1-SNAPSHOT-jar-with-dependencies.jar"
+            "https://repo1.maven.org/maven2/com/github/mauricioaniche/ck/0.7.0/ck-0.7.0-jar-with-dependencies.jar",
         ]
-        
-        jar_path = os.path.join(output_dir, "ck-jar-with-dependencies.jar")
-        
+        jar_path = os.path.join(output_dir, "ck-0.7.0-jar-with-dependencies.jar")
         for url in urls:
             print(f"  Baixando CK de {url}...")
-            
             try:
-                response = requests.get(url, stream=True, timeout=30)
+                response = requests.get(url, stream=True, timeout=60)
                 response.raise_for_status()
-                
-                with open(jar_path, 'wb') as f:
+                with open(jar_path, "wb") as f:
                     for chunk in response.iter_content(chunk_size=8192):
                         f.write(chunk)
-                
-                self.ck_jar_path = jar_path
+                self.ck_jar_path = os.path.abspath(jar_path)
                 self.ck_available = True
-                print(f"  CK baixado com sucesso em: {jar_path}")
+                print(f"  CK baixado em: {jar_path}")
                 return True
-            
-            except Exception as e:
-                print(f"    Falha ao baixar: {str(e)[:80]}")
-                continue
-        
-        print(f"  Não foi possível baixar CK de nenhuma das URLs testadas.")
+            except Exception as exc:
+                print(f"    Falha ao baixar CK: {str(exc)[:120]}")
         return False
-    
-    def analyze_repository(self, repo_path: str, output_dir: str) -> Dict:
-        """
-        Executa o CK em um repositório Java.
-        
-        Args:
-            repo_path: Caminho para o repositório Clone
-            output_dir: Diretório para salvar resultados
-        
-        Returns:
-            Dicionário com os caminhos dos arquivos CSV gerados
-        """
-        if not self.ck_available:
-            print("[AVISO] CK não está disponível. Será criado um relatório simulado.")
-            return self._create_fallback_report(repo_path, output_dir)
-        
+
+    def analyze_repository(self, repo_path: str, output_dir: str) -> Dict[str, str]:
+        """Executa CK e produz processed_class_metrics.csv no output_dir."""
         if not os.path.exists(repo_path):
-            print(f"[ERRO] Repositório não encontrado: {repo_path}")
+            print(f"[ERRO] Repositorio nao encontrado: {repo_path}")
             return {}
-        
+
         os.makedirs(output_dir, exist_ok=True)
-        
-        print(f"  Executando CK no repositório: {repo_path}")
-        
+
+        # Já tem resultado processado?
+        processed_csv = os.path.join(output_dir, "processed_class_metrics.csv")
+        if os.path.exists(processed_csv) and os.path.getsize(processed_csv) > 100:
+            return {"processed_class_metrics.csv": processed_csv}
+
+        if not self.ck_available:
+            self.ck_available = self.download_ck(output_dir)
+
+        if not self.ck_available:
+            print("[AVISO] CK nao disponivel. Gerando fallback.")
+            return self._create_fallback_report(repo_path, output_dir)
+
         try:
-            cmd = ["java", "-jar", self.ck_jar_path, repo_path, "false", "0", output_dir]
-            
-            result = subprocess.run(
-                cmd,
-                capture_output=True,
-                text=True,
-                timeout=300
-            )
-            
+            # Trailing separator garante que CK grava DENTRO do diretório
+            out_dir_arg = output_dir.rstrip("/\\") + "/"
+            cmd = ["java", "-jar", self.ck_jar_path, repo_path, "false", "0", "false", out_dir_arg]
+            result = subprocess.run(cmd, capture_output=True, text=True, timeout=600)
+
             if result.returncode != 0:
-                print(f"  [ERRO] CK retornou erro: {result.stderr}")
-                return {}
-            
-            # Localizar arquivos gerados pelo CK
-            output_files = {}
-            for file in os.listdir(output_dir):
-                if file.endswith(".csv"):
-                    filepath = os.path.join(output_dir, file)
-                    output_files[file] = filepath
-            
-            print(f"  CK executado com sucesso. Arquivos gerados: {list(output_files.keys())}")
-            return output_files
-        
+                print(f"[ERRO] CK falhou: {result.stderr[:300]}")
+                return self._create_fallback_report(repo_path, output_dir)
+
+            # CK gera class.csv dentro de output_dir
+            class_csv = os.path.join(output_dir, "class.csv")
+            if os.path.exists(class_csv) and os.path.getsize(class_csv) > 100:
+                # Renomear para processed_class_metrics.csv com retry
+                for attempt in range(5):
+                    try:
+                        import shutil
+                        shutil.move(class_csv, processed_csv)
+                        break
+                    except Exception:
+                        import time
+                        time.sleep(1)
+                print(f"  CK executado com sucesso: {processed_csv}")
+                return {"processed_class_metrics.csv": processed_csv}
+
+            # Fallback: verificar se CK gerou com prefixo (sem trailing slash)
+            parent_dir = os.path.dirname(output_dir.rstrip("/\\"))
+            base_name = os.path.basename(output_dir.rstrip("/\\"))
+            prefixed = os.path.join(parent_dir, f"{base_name}class.csv")
+            if os.path.exists(prefixed) and os.path.getsize(prefixed) > 100:
+                for attempt in range(5):
+                    try:
+                        import shutil
+                        shutil.move(prefixed, processed_csv)
+                        break
+                    except Exception:
+                        import time
+                        time.sleep(1)
+                print(f"  CK executado (prefixed): {processed_csv}")
+                return {"processed_class_metrics.csv": processed_csv}
+
+            print("[AVISO] CK nao gerou class.csv valido. Gerando fallback.")
+            return self._create_fallback_report(repo_path, output_dir)
+
         except subprocess.TimeoutExpired:
-            print(f"  [ERRO] CK demorou demais e foi interrompido (timeout de 300 segundos)")
-            return {}
-        except Exception as e:
-            print(f"  [ERRO] Falha ao executar CK: {e}")
-            return {}
-    
+            print("[ERRO] Timeout ao executar CK (600s). Gerando fallback.")
+            return self._create_fallback_report(repo_path, output_dir)
+        except Exception as exc:
+            print(f"[ERRO] Falha ao executar CK: {exc}. Gerando fallback.")
+            return self._create_fallback_report(repo_path, output_dir)
+
     @staticmethod
-    def _create_fallback_report(repo_path: str, output_dir: str) -> Dict:
-        """
-        Cria relatório fallback quando CK não está disponível.
-        Escaneia os arquivos Java e cria métricas simuladas.
-        """
+    def _create_fallback_report(repo_path: str, output_dir: str) -> Dict[str, str]:
         os.makedirs(output_dir, exist_ok=True)
-        
-        # Escaneia arquivos Java
-        java_classes = []
+
+        java_files: List[str] = []
+        ignore_dirs = {".git", ".github", "node_modules", "build", "target", ".gradle"}
         for root, dirs, files in os.walk(repo_path):
-            if '.git' in dirs:
-                dirs.remove('.git')
-            for file in files:
-                if file.endswith('.java'):
-                    filepath = os.path.join(root, file)
-                    java_classes.append(filepath)
-        
-        # Cria CSV com métricas simuladas (baseadas em contagem de linhas)
-        class_metrics = []
-        for java_file in java_classes[:100]:  # Limite a 100 classes para não ficar muito lento
+            dirs[:] = [d for d in dirs if d not in ignore_dirs]
+            for f in files:
+                if f.endswith(".java"):
+                    java_files.append(os.path.join(root, f))
+
+        rows: List[Dict] = []
+        for java_file in java_files[:500]:
             try:
-                with open(java_file, 'r', encoding='utf-8', errors='ignore') as f:
-                    lines = f.readlines()
-                    loc = len(lines)
-                    
-                class_name = os.path.basename(java_file).replace('.java', '')
-                class_metrics.append({
-                    'file': java_file.replace(repo_path, ''),
-                    'class': class_name,
-                    'type': 'class',
-                    'cbo': max(1, loc // 50),  # Simulado
-                    'dit': 1 if 'Abstract' in class_name else 2,  # Simulado
-                    'lcom': 0.5 if loc > 100 else 0.3,  # Simulado
-                    'loc': loc,
-                    'methods': max(1, loc // 20)  # Simulado
+                with open(java_file, "r", encoding="utf-8", errors="ignore") as fp:
+                    lines = fp.readlines()
+                loc = len(lines)
+                class_name = os.path.basename(java_file).replace(".java", "")
+                import_count = sum(1 for l in lines if l.strip().startswith("import "))
+                extends = any("extends " in l for l in lines[:50])
+                rows.append({
+                    "file": java_file.replace(repo_path, ""),
+                    "class": class_name,
+                    "type": "class",
+                    "cbo": max(1, import_count),
+                    "dit": 2 if extends else 1,
+                    "lcom": round(max(0, (loc - 50) / max(loc, 1)), 2),
+                    "loc": loc,
+                    "methods": max(1, sum(1 for l in lines if "void " in l or "public " in l or "private " in l) // 2),
                 })
-            except:
-                pass
-        
-        # Salvar CSV processado
-        csv_path = os.path.join(output_dir, 'processed_class_metrics.csv')
-        if class_metrics:
-            with open(csv_path, 'w', newline='', encoding='utf-8') as f:
-                fieldnames = list(class_metrics[0].keys())
-                writer = csv.DictWriter(f, fieldnames=fieldnames)
+            except Exception:
+                continue
+
+        csv_path = os.path.join(output_dir, "processed_class_metrics.csv")
+        if rows:
+            with open(csv_path, "w", newline="", encoding="utf-8") as fp:
+                writer = csv.DictWriter(fp, fieldnames=list(rows[0].keys()))
                 writer.writeheader()
-                writer.writerows(class_metrics)
-            print(f"  Relatório simulado criado: {csv_path}")
-            print(f"    Total de arquivos Java encontrados: {len(java_classes)}")
-            print(f"    Total de classes analisadas (simulado): {len(class_metrics)}")
-        
-        return {'processed_class_metrics.csv': csv_path}
-    
-    @staticmethod
-    def summarize_metrics(csv_files: Dict) -> Dict:
-        """
-        Sumariza as métricas extraídas pelo CK.
-        
-        Args:
-            csv_files: Dicionário com caminhos dos CSVs gerados
-        
-        Returns:
-            Dicionário com métricas sumarizadas
-        """
-        summary = {
-            "class_metrics": [],
-            "method_metrics": []
-        }
-        
-        # Processar arquivo de classes
-        class_csv = csv_files.get("class_metrics.csv")
-        if class_csv and os.path.exists(class_csv):
-            with open(class_csv, 'r', encoding='utf-8') as f:
-                reader = csv.DictReader(f)
-                for row in reader:
-                    summary["class_metrics"].append(row)
-        
-        # Processar arquivo de métodos
-        method_csv = csv_files.get("method_metrics.csv")
-        if method_csv and os.path.exists(method_csv):
-            with open(method_csv, 'r', encoding='utf-8') as f:
-                reader = csv.DictReader(f)
-                for row in reader:
-                    summary["method_metrics"].append(row)
-        
-        return summary
-    
-    @staticmethod
-    def calculate_statistics(metrics: List[Dict], metric_names: List[str]) -> Dict:
-        """
-        Calcula estatísticas descritivas para as métricas.
-        
-        Args:
-            metrics: Lista de dicionários com métricas
-            metric_names: Nomes das métricas a analisar
-        
-        Returns:
-            Dicionário com estatísticas (média, mediana, desvio padrão, min, max)
-        """
-        statistics_result = {}
-        
-        for metric_name in metric_names:
-            values = []
-            for metric in metrics:
-                try:
-                    val = float(metric.get(metric_name, 0))
-                    values.append(val)
-                except (ValueError, TypeError):
-                    pass
-            
-            if values:
-                statistics_result[metric_name] = {
-                    "count": len(values),
-                    "mean": statistics.mean(values),
-                    "median": statistics.median(values),
-                    "stdev": statistics.stdev(values) if len(values) > 1 else 0,
-                    "min": min(values),
-                    "max": max(values)
-                }
-        
-        return statistics_result
+                writer.writerows(rows)
+            return {"processed_class_metrics.csv": csv_path}
+        return {}
