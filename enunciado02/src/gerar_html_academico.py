@@ -1,5 +1,4 @@
 import csv
-import os
 from pathlib import Path
 from statistics import mean, median, stdev
 
@@ -20,6 +19,55 @@ def to_float(val):
         return float(val)
     except:
         return None
+
+
+def calc_stats(arr):
+    if not arr:
+        return (0, 0, 0, 0, 0)
+    return (
+        mean(arr),
+        median(arr),
+        stdev(arr) if len(arr) > 1 else 0,
+        min(arr),
+        max(arr),
+    )
+
+
+def row_fmt(name, stats):
+    return (
+        f"<tr><td>{name}</td><td>{stats[0]:.4f}</td><td>{stats[1]:.4f}</td>"
+        f"<td>{stats[2]:.4f}</td><td>{stats[3]:.4f}</td><td>{stats[4]:.4f}</td></tr>"
+    )
+
+
+def calc_spearman(x, y):
+    if not SCIPY_AVAILABLE:
+        return 0.0, 1.0, "N/A"
+    if len(x) < 3 or len(y) < 3:
+        return 0.0, 1.0, "amostra insuficiente"
+    n = min(len(x), len(y))
+    r, p = spearmanr(x[:n], y[:n])
+    sig = '<span class="sig-yes">Sim</span>' if p < 0.05 else '<span class="sig-no">Não</span>'
+    return r, p, sig
+
+
+def classify_strength(rho):
+    a = abs(rho)
+    if a < 0.10:
+        return "desprezível"
+    if a < 0.30:
+        return "fraca"
+    if a < 0.50:
+        return "moderada"
+    return "forte"
+
+
+def classify_direction(rho):
+    if rho > 0:
+        return "positiva"
+    if rho < 0:
+        return "negativa"
+    return "nula"
 
 def main():
     if not CSV_FILE.exists():
@@ -58,43 +106,186 @@ def main():
     dit = [r["dit"] for r in quality]
     lcom = [r["lcom"] for r in quality]
 
-    def calc_stats(arr):
-        if not arr: return (0,0,0,0,0)
-        return (mean(arr), median(arr), stdev(arr) if len(arr)>1 else 0, min(arr), max(arr))
+    st_stars = calc_stats(stars)
+    st_mat = calc_stats(maturity)
+    st_rel = calc_stats(releases)
+    st_loc = calc_stats(loc)
+    st_cbo = calc_stats(cbo)
+    st_dit = calc_stats(dit)
+    st_lcom = calc_stats(lcom)
 
-    st_stars = calc_stats(stars); st_mat = calc_stats(maturity)
-    st_rel = calc_stats(releases); st_loc = calc_stats(loc)
-    st_cbo = calc_stats(cbo); st_dit = calc_stats(dit); st_lcom = calc_stats(lcom)
+    rq_data = {
+        "RQ01": {
+            "x_name": "Popularidade (Stars)",
+            "x_values": stars,
+            "x_axis": "stars",
+            "hypothesis": "H1: maior popularidade se associa a menor acoplamento e maior coesão.",
+            "images": [
+                ("plots_parciais/rq01_stars_vs_cbo.png", "Figura RQ01-A. Stars vs CBO"),
+                ("plots_parciais/rq01_stars_vs_dit.png", "Figura RQ01-B. Stars vs DIT"),
+                ("plots_parciais/rq01_stars_vs_lcom.png", "Figura RQ01-C. Stars vs LCOM"),
+            ],
+        },
+        "RQ02": {
+            "x_name": "Maturidade (Anos)",
+            "x_values": maturity,
+            "x_axis": "maturityYears",
+            "hypothesis": "H2: o envelhecimento do projeto eleva complexidade estrutural e risco de dívida técnica.",
+            "images": [
+                ("plots_parciais/rq02_maturity_vs_cbo.png", "Figura RQ02-A. Maturidade vs CBO"),
+                ("plots_parciais/rq02_maturity_vs_dit.png", "Figura RQ02-B. Maturidade vs DIT"),
+                ("plots_parciais/rq02_maturity_vs_lcom.png", "Figura RQ02-C. Maturidade vs LCOM"),
+            ],
+        },
+        "RQ03": {
+            "x_name": "Atividade (Releases)",
+            "x_values": releases,
+            "x_axis": "releases",
+            "hypothesis": "H3: maior frequência de releases exige modularidade para preservar qualidade interna.",
+            "images": [
+                ("plots_parciais/rq03_releases_vs_cbo.png", "Figura RQ03-A. Releases vs CBO"),
+                ("plots_parciais/rq03_releases_vs_dit.png", "Figura RQ03-B. Releases vs DIT"),
+                ("plots_parciais/rq03_releases_vs_lcom.png", "Figura RQ03-C. Releases vs LCOM"),
+            ],
+        },
+        "RQ04": {
+            "x_name": "Tamanho (LOC)",
+            "x_values": loc,
+            "x_axis": "sizeLoc",
+            "hypothesis": "H4: crescimento de tamanho aumenta a interdependência entre classes e o custo de manutenção.",
+            "images": [
+                ("plots_parciais/rq04_loc_vs_cbo.png", "Figura RQ04-A. LOC vs CBO"),
+                ("plots_parciais/rq04_loc_vs_dit.png", "Figura RQ04-B. LOC vs DIT"),
+                ("plots_parciais/rq04_loc_vs_lcom.png", "Figura RQ04-C. LOC vs LCOM"),
+            ],
+        },
+    }
 
-    def row_fmt(name, stats):
-        return f"<tr><td>{name}</td><td>{stats[0]:.4f}</td><td>{stats[1]:.4f}</td><td>{stats[2]:.4f}</td><td>{stats[3]:.4f}</td><td>{stats[4]:.4f}</td></tr>"
+    y_metrics = {
+        "CBO": ("CBO (Acoplamento)", cbo),
+        "DIT": ("DIT (Prof. Herança)", dit),
+        "LCOM": ("LCOM (Falta de Coesão)", lcom),
+    }
 
-    def calc_spearman(x, y):
-        if not SCIPY_AVAILABLE: return 0.0, 1.0, "N/A"
-        if len(x) < 3 or len(y) < 3: return 0.0, 1.0, "amostra insuficiente"
-        n = min(len(x), len(y))
-        r, p = spearmanr(x[:n], y[:n])
-        sig = '<span class="sig-yes">Sim</span>' if p < 0.05 else '<span class="sig-no">Não</span>'
-        return r, p, sig
+    for rq_key, rq_cfg in rq_data.items():
+        correlations = []
+        for metric_code, (metric_label, metric_values) in y_metrics.items():
+            r, p, sig = calc_spearman(rq_cfg["x_values"], metric_values)
+            correlations.append({
+                "metric_code": metric_code,
+                "metric_label": metric_label,
+                "rho": r,
+                "p": p,
+                "sig": sig,
+            })
+        rq_cfg["corr"] = correlations
 
-    corrs = [
-        ("Popularidade (Stars)", "CBO (Acoplamento)", *calc_spearman(stars, cbo)),
-        ("Popularidade (Stars)", "DIT (Herança)", *calc_spearman(stars, dit)),
-        ("Popularidade (Stars)", "LCOM (Falta de Coesão)", *calc_spearman(stars, lcom)),
-        ("Maturidade (Anos)", "CBO (Acoplamento)", *calc_spearman(maturity, cbo)),
-        ("Maturidade (Anos)", "DIT (Herança)", *calc_spearman(maturity, dit)),
-        ("Maturidade (Anos)", "LCOM (Falta de Coesão)", *calc_spearman(maturity, lcom)),
-        ("Atividade (Releases)", "CBO (Acoplamento)", *calc_spearman(releases, cbo)),
-        ("Atividade (Releases)", "DIT (Herança)", *calc_spearman(releases, dit)),
-        ("Atividade (Releases)", "LCOM (Falta de Coesão)", *calc_spearman(releases, lcom)),
-        ("Tamanho (LOC)", "CBO (Acoplamento)", *calc_spearman(loc, cbo)),
-        ("Tamanho (LOC)", "DIT (Herança)", *calc_spearman(loc, dit)),
-        ("Tamanho (LOC)", "LCOM (Falta de Coesão)", *calc_spearman(loc, lcom)),
-    ]
+    global_corr_rows = ""
+    for rq_key in ["RQ01", "RQ02", "RQ03", "RQ04"]:
+        for item in rq_data[rq_key]["corr"]:
+            global_corr_rows += (
+                f"<tr><td>{rq_data[rq_key]['x_name']}</td>"
+                f"<td>{item['metric_label']}</td><td>{item['rho']:.4f}</td>"
+                f"<td>{item['p']:.4e}</td><td>{item['sig']}</td></tr>\n"
+            )
 
-    corr_rows = ""
-    for a, b, r, p, sig in corrs:
-        corr_rows += f"<tr><td>{a}</td><td>{b}</td><td>{r:.4f}</td><td>{p:.4e}</td><td>{sig}</td></tr>\n"
+    def build_rq_table(rq_key):
+        rows = ""
+        for item in rq_data[rq_key]["corr"]:
+            rows += (
+                f"<tr><td>{rq_data[rq_key]['x_name']}</td><td>{item['metric_label']}</td>"
+                f"<td>{item['rho']:.4f}</td><td>{item['p']:.4e}</td><td>{item['sig']}</td></tr>"
+            )
+        return rows
+
+    def build_rq_interpretation(rq_key):
+        lines = []
+        for item in rq_data[rq_key]["corr"]:
+            direction = classify_direction(item["rho"])
+            strength = classify_strength(item["rho"])
+            signif = "com significância estatística" if item["p"] < 0.05 else "sem significância estatística"
+            lines.append(
+                f"<li>{item['metric_code']}: correlação {direction} e {strength} "
+                f"($\\rho$={item['rho']:.3f}), {signif} (p={item['p']:.3e}).</li>"
+            )
+        return "".join(lines)
+
+    def build_problem_discussion(rq_key):
+        significant = [c for c in rq_data[rq_key]["corr"] if c["p"] < 0.05]
+        if not significant:
+            return (
+                "<p>Nesta questão, não foram identificadas relações estatisticamente robustas. "
+                "O principal problema analítico passa a ser o risco de inferência causal indevida: "
+                "a ausência de associação significativa não implica ausência de efeito, podendo refletir "
+                "heterogeneidade arquitetural entre domínios de aplicação.</p>"
+            )
+
+        risk_points = []
+        for c in significant:
+            if c["metric_code"] == "CBO" and c["rho"] > 0:
+                risk_points.append(
+                    "elevação do acoplamento entre classes, dificultando evolução independente de módulos"
+                )
+            if c["metric_code"] == "LCOM" and c["rho"] > 0:
+                risk_points.append(
+                    "redução de coesão interna, com aumento de classes multifuncionais e maior dívida técnica"
+                )
+            if c["metric_code"] == "DIT" and c["rho"] > 0:
+                risk_points.append(
+                    "profundidade excessiva da hierarquia de herança, ampliando custo cognitivo de manutenção"
+                )
+            if c["metric_code"] == "CBO" and c["rho"] < 0:
+                risk_points.append(
+                    "indício de melhor separação modular em cenários de maior pressão externa"
+                )
+
+        if not risk_points:
+            return (
+                "<p>Os efeitos significativos observados sugerem comportamento estrutural não linear. "
+                "A principal implicação prática é reforçar revisão arquitetural periódica por refatorações "
+                "orientadas a métricas.</p>"
+            )
+
+        joined = "; ".join(risk_points)
+        return (
+            "<p>Problemas identificados para esta questão: "
+            f"{joined}. Em termos de engenharia, recomenda-se monitoramento contínuo de CK, "
+            "inspeções de arquitetura e gatilhos de refatoração preventiva em pontos críticos.</p>"
+        )
+
+    def build_rq_figures(rq_key):
+        html_cards = ""
+        for src, caption in rq_data[rq_key]["images"]:
+            html_cards += (
+                "<div class='figure-card'>"
+                f"<img src='{src}' alt='{caption}' onerror=\"this.style.display='none'\">"
+                f"<p class='caption'>{caption}</p>"
+                "</div>"
+            )
+        return html_cards
+
+    rq_sections = ""
+    for rq_key in ["RQ01", "RQ02", "RQ03", "RQ04"]:
+        rq_sections += f"""
+        <section class="rq-block" id="{rq_key.lower()}">
+            <h3>{rq_key} - {rq_data[rq_key]['x_name']} x Qualidade Estrutural</h3>
+            <p><strong>Hipótese operacional:</strong> {rq_data[rq_key]['hypothesis']}</p>
+            <p><strong>Leitura dos gráficos:</strong> cada gráfico de dispersão representa a variável independente no eixo X e uma métrica CK no eixo Y. A inclinação visual e a dispersão dos pontos orientam a interpretação do sinal e da intensidade da associação monotônica.</p>
+            <table>
+                <tr><th>Variável X</th><th>Métrica Y</th><th>Spearman (&rho;)</th><th>p-value</th><th>Significância</th></tr>
+                {build_rq_table(rq_key)}
+            </table>
+            <div class="figure-grid">
+                {build_rq_figures(rq_key)}
+            </div>
+            <h4>Interpretação estatística</h4>
+            <ul>
+                {build_rq_interpretation(rq_key)}
+            </ul>
+            <h4>Dissertação sobre problemas observados</h4>
+            {build_problem_discussion(rq_key)}
+        </section>
+        """
 
     # HTML TEMPLATE
     html = f"""<!DOCTYPE html>
@@ -102,128 +293,195 @@ def main():
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Estudo Científico das Características de Qualidade de Sistemas Java</title>
+    <title>Relatório Acadêmico - Qualidade de Sistemas Java</title>
     <style>
         :root {{
-            --primary: #003366;
-            --secondary: #00509e;
-            --bg: #fafafa;
-            --text: #2c2c2c;
-            --border: #e0e0e0;
+            --primary: #0b2f5b;
+            --secondary: #1d5fa7;
+            --bg: #f7f7f7;
+            --text: #222;
+            --border: #d8d8d8;
         }}
         body {{
             font-family: "Georgia", "Times New Roman", serif;
-            line-height: 1.7;
+            line-height: 1.75;
             color: var(--text);
-            background-color: var(--bg);
-            max-width: 1000px;
+            background: var(--bg);
+            max-width: 1080px;
             margin: 0 auto;
             padding: 40px 20px;
         }}
-        h1, h2, h3, h4 {{ font-family: "Segoe UI", "Arial", sans-serif; color: var(--primary); }}
-        h1 {{ text-align: center; border-bottom: 3px solid var(--primary); padding-bottom: 15px; margin-bottom: 30px; font-size: 2.2em; }}
-        h2 {{ border-bottom: 1px solid var(--border); padding-bottom: 5px; margin-top: 40px; }}
+        h1, h2, h3, h4 {{
+            font-family: "Segoe UI", "Arial", sans-serif;
+            color: var(--primary);
+        }}
+        h1 {{
+            text-align: center;
+            border-bottom: 3px solid var(--primary);
+            padding-bottom: 12px;
+            margin-bottom: 20px;
+            font-size: 2.1em;
+        }}
+        h2 {{ border-bottom: 1px solid var(--border); padding-bottom: 6px; margin-top: 36px; }}
         .header {{ text-align: center; margin-bottom: 50px; }}
-        .meta {{ font-style: italic; color: #555; }}
-        
-        /* Abstract */
+        .meta {{ font-style: italic; color: #555; margin: 6px 0; }}
         .abstract {{
             background: #fff;
-            padding: 25px 35px;
+            padding: 22px 28px;
             border-top: 2px solid var(--secondary);
             border-bottom: 2px solid var(--secondary);
-            margin: 0 auto 50px auto;
+            margin: 0 auto 35px auto;
             box-shadow: 0 4px 6px rgba(0,0,0,0.02);
             text-align: justify;
         }}
-        .abstract h3 {{ text-align: center; margin-top: 0; font-variant: small-caps; }}
-        
-        /* Table of Contents */
-        .toc {{ background: #f4f7f9; border-left: 4px solid var(--secondary); padding: 20px 30px; margin-bottom: 50px; font-family: "Segoe UI", sans-serif; }}
+        .abstract h3 {{ text-align: center; margin-top: 0; font-variant: small-caps; margin-bottom: 10px; }}
+        .toc {{
+            background: #f1f5f9;
+            border-left: 4px solid var(--secondary);
+            padding: 20px 24px;
+            margin-bottom: 36px;
+            font-family: "Segoe UI", sans-serif;
+        }}
         .toc h3 {{ margin-top: 0; }}
         .toc ul {{ list-style-type: none; padding-left: 0; }}
-        .toc li {{ padding: 5px 0; border-bottom: 1px dashed #ccc; }}
+        .toc li {{ padding: 5px 0; border-bottom: 1px dashed #ccd6e0; }}
         .toc a {{ text-decoration: none; color: var(--primary); font-weight: 500; display: block; }}
-        .toc a:hover {{ color: #d32f2f; }}
-        .toc .sub-item {{ padding-left: 20px; font-size: 0.9em; border-bottom: none; }}
-        
-        /* Tables */
-        table {{ width: 100%; border-collapse: collapse; margin: 30px 0; font-family: "Arial", sans-serif; font-size: 0.9em; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }}
+        .toc a:hover {{ color: #b71c1c; }}
+        table {{
+            width: 100%;
+            border-collapse: collapse;
+            margin: 24px 0;
+            font-family: "Arial", sans-serif;
+            font-size: 0.92em;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.04);
+            background: #fff;
+        }}
         th, td {{ border: 1px solid var(--border); padding: 12px 15px; text-align: center; }}
-        th {{ background-color: var(--primary); color: white; text-transform: uppercase; letter-spacing: 0.5px; font-size: 0.8em; }}
+        th {{
+            background-color: var(--primary);
+            color: white;
+            text-transform: uppercase;
+            letter-spacing: 0.4px;
+            font-size: 0.79em;
+        }}
         tr:nth-child(even) {{ background-color: #f9f9f9; }}
-        tr:hover {{ background-color: #f0f0f0; }}
-        
+        tr:hover {{ background-color: #eef5ff; }}
         p {{ text-align: justify; margin-bottom: 15px; }}
-        .highlight {{ background-color: #e8f4f8; padding: 15px; border-left: 4px solid #00acc1; margin: 20px 0; font-style: italic; }}
+        .highlight {{
+            background-color: #ecf5ff;
+            padding: 14px;
+            border-left: 4px solid #2f7bc7;
+            margin: 18px 0;
+            font-style: italic;
+        }}
+        .glossary {{
+            background: #ffffff;
+            border: 1px solid var(--border);
+            border-left: 4px solid var(--secondary);
+            padding: 18px 22px;
+        }}
+        .glossary dt {{ font-weight: bold; margin-top: 10px; }}
+        .glossary dd {{ margin-left: 0; margin-bottom: 8px; }}
         .sig-yes {{ color: #2e7d32; font-weight: bold; }}
         .sig-no {{ color: #c62828; }}
-        
-        .img-container {{ margin: 40px 0; text-align: center; }}
-        .img-container img {{ max-width: 100%; border: 1px solid #ddd; box-shadow: 0 4px 10px rgba(0,0,0,0.1); border-radius: 4px; cursor: pointer; transition: transform 0.2s; }}
-        .img-container img:hover {{ transform: scale(1.02); }}
-        .caption {{ font-size: 0.85em; color: #666; margin-top: 10px; font-style: italic; }}
-        .grid-2 {{ display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }}
-        .grid-3 {{ display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px; margin-top: 20px; }}
-        .grid-3 img {{ width: 100%; height: auto; }}
-        
-        .conclusion-box {{ border: 2px solid var(--secondary); padding: 20px; background-color: #fff; margin-top: 40px; border-radius: 5px; }}
-        
-        .section-title-img {{ margin-top: 50px; color: var(--primary); font-family: "Segoe UI", sans-serif; font-size: 1.3em; border-bottom: 1px dotted #ccc; padding-bottom: 5px; }}
+        .rq-block {{
+            background: #fff;
+            border: 1px solid var(--border);
+            border-left: 4px solid var(--secondary);
+            padding: 20px;
+            margin-bottom: 28px;
+        }}
+        .figure-grid {{
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 14px;
+            margin: 16px 0;
+        }}
+        .figure-card {{
+            border: 1px solid #d9e2ec;
+            border-radius: 6px;
+            padding: 10px;
+            background: #fbfdff;
+        }}
+        .figure-card img {{ width: 100%; height: auto; border-radius: 4px; }}
+        .caption {{ font-size: 0.83em; color: #555; margin-top: 7px; font-style: italic; text-align: left; }}
+        .conclusion-box {{
+            border: 2px solid var(--secondary);
+            padding: 18px;
+            background-color: #fff;
+            margin-top: 24px;
+            border-radius: 4px;
+        }}
+        @media (max-width: 700px) {{
+            body {{ padding: 20px 12px; }}
+            th, td {{ padding: 10px 8px; font-size: 0.85em; }}
+        }}
     </style>
 </head>
 <body>
 
     <div class="header">
-        <h1>Análise Empírica das Características de Qualidade de Sistemas Java Open-Source</h1>
-        <p class="meta">Relatório Científico | Laboratório de Medição e Experimentação de Software</p>
-        <p class="meta"><strong>Tamanho da Amostra:</strong> {n_repos} Repositórios Analisados Rigorosamente</p>
+        <h1>Análise Empírica de Qualidade em Sistemas Java Open Source</h1>
+        <p class="meta">Relatório no formato acadêmico | Laboratório de Medição e Experimentação de Software</p>
+        <p class="meta"><strong>Amostra analisada:</strong> {n_repos} repositórios com métricas consolidadas</p>
     </div>
 
     <div class="abstract">
-        <h3>Sumário Executivo (Abstract)</h3>
-        <p>Este documento apresenta os resultados de uma investigação empírica sobre a relação entre atributos de processo — como popularidade, maturidade institucional, nível de atividade e dimensão da base de código — e propriedades de qualidade arquitetural (Acoplamento, Herança e Coesão) em projetos open-source escritos em Java. Através da ferramenta de análise estática CK (v0.7.0) e da API GraphQL do GitHub, foram extraídas as métricas de {n_repos} projetos líderes de mercado. A análise correlacional, conduzida através do coeficiente de Spearman, revela padrões não triviais no ciclo de vida de softwares de alta escalabilidade, com achados que contrariam parcialmente as expectativas da literatura clássica de engenharia de software.</p>
+        <h3>Resumo</h3>
+        <p>Este relatório examina relações entre métricas de processo (popularidade, maturidade, atividade e tamanho) e métricas estruturais de qualidade (CBO, DIT e LCOM) em projetos Java open source. Os dados foram extraídos de repositórios no GitHub e processados pela suíte CK. Para avaliar associações monotônicas em distribuições assimétricas, adotou-se o coeficiente de Spearman com nível de significância de 5%. A apresentação dos resultados foi organizada por questões de pesquisa (RQ01-RQ04), de modo que cada questão contenha seus gráficos, explicações dos termos e uma discussão crítica dos problemas observados.</p>
     </div>
 
     <div class="toc">
         <h3>Índice de Conteúdos</h3>
         <ul>
-            <li><a href="#intro">1. Fundamentação Teórica e Hipóteses</a></li>
-            <li><a href="#metodo">2. Design Metodológico</a></li>
-            <li><a href="#stats">3. Estatística Descritiva da Amostra</a></li>
-            <li><a href="#correlacao">4. Análise Correlacional e Testes de Hipótese</a></li>
-            <li><a href="#discussao">5. Discussão Aprofundada dos Resultados</a></li>
-            <li><a href="#visualizacao">6. Apêndice Visual: Gráficos Estatísticos</a></li>
-            <li><a href="#conclusao">7. Conclusão e Ameaças à Validade</a></li>
+            <li><a href="#intro">1. Fundamentação e Hipóteses</a></li>
+            <li><a href="#metodo">2. Método e Delineamento</a></li>
+            <li><a href="#glossario">3. Glossário dos Termos Técnicos</a></li>
+            <li><a href="#stats">4. Estatística Descritiva</a></li>
+            <li><a href="#correlacao">5. Correlação Global</a></li>
+            <li><a href="#rq">6. Resultados por Questão de Pesquisa</a></li>
+            <li><a href="#discussao">7. Discussão dos Problemas de Qualidade</a></li>
+            <li><a href="#conclusao">8. Conclusão e Ameaças à Validade</a></li>
         </ul>
     </div>
 
-    <!-- 1. INTRODUÇÃO -->
-    <h2 id="intro">1. Fundamentação Teórica e Hipóteses</h2>
-    <p>A engenharia de software moderna depende fortemente de métricas para orientar a refatoração e escalabilidade de sistemas. Este estudo averígua se os padrões de processo comportamentais da comunidade open-source refletem diretamente na estrutura interna do código (Métricas Orientadas a Objetos propostas por Chidamber e Kemerer).</p>
+    <h2 id="intro">1. Fundamentação e Hipóteses</h2>
+    <p>A literatura de engenharia de software sugere que crescimento de base de código e evolução prolongada tendem a pressionar modularidade e coesão. Este estudo testa, de forma empírica, se variáveis de processo de projetos open source se associam a atributos internos de qualidade arquitetural.</p>
     <p>As seguintes hipóteses formais foram estabelecidas a priori:</p>
     <ul>
-        <li><strong>H1 (Popularidade vs. Qualidade):</strong> Sistemas amplamente adotados (alto número de Stars) tendem a apresentar arquiteturas mais desacopladas (baixo CBO) e métodos mais coesos (baixo LCOM) devido à intensa revisão por pares da comunidade.</li>
-        <li><strong>H2 (Maturidade vs. Qualidade):</strong> Projetos antigos acumulam dívida técnica. Postula-se uma correlação positiva entre maturidade (anos ativos) e métricas de complexidade e acoplamento (aumento de CBO e DIT).</li>
-        <li><strong>H3 (Atividade vs. Qualidade):</strong> Lançamentos frequentes (Releases) exigem manutenção modular. Espera-se uma correlação negativa com LCOM (isto é, repositórios ativos são mais coesos).</li>
-        <li><strong>H4 (Tamanho vs. Qualidade):</strong> A expansão linear de Linhas de Código (LOC) acarreta em expansão não-linear sistêmica, elevando intrinsecamente as taxas de CBO.</li>
+        <li><strong>H1:</strong> projetos mais populares (Stars) tendem a apresentar menor acoplamento e maior coesão.</li>
+        <li><strong>H2:</strong> projetos mais maduros (anos) acumulam complexidade estrutural ao longo do tempo.</li>
+        <li><strong>H3:</strong> maior atividade de releases pode afetar a estabilidade arquitetural.</li>
+        <li><strong>H4:</strong> crescimento de LOC eleva esforço de coordenação e risco de acoplamento.</li>
     </ul>
 
-    <!-- 2. METODOLOGIA -->
-    <h2 id="metodo">2. Design Metodológico</h2>
-    <p>Para garantir a replicabilidade deste experimento, implementamos um pipeline automatizado de extração e processamento vetorial.</p>
+    <h2 id="metodo">2. Método e Delineamento</h2>
+    <p>O pipeline foi automatizado para permitir rastreabilidade e reprodutibilidade experimental.</p>
     <ul>
-        <li><strong>Amostragem:</strong> Top repositórios mundiais em Java, ordenados por estrelas via GitHub REST API.</li>
-        <li><strong>Métricas de Processo Elicitadas:</strong> Coletadas dinamicamente via GitHub GraphQL API, englobando contagem de releases históricos, idade em anos e LOC estrita (desconsiderando artefatos gerados automaticamente).</li>
-        <li><strong>Medição da Qualidade Intrínseca:</strong> Todos os repositórios foram clonados e submetidos à ferramenta estática <i>CK</i>. As métricas CBO, LCOM e DIT foram extraídas no nível de classe e agregadas (via Média) para o nível de sistema.</li>
-        <li><strong>Análise Estatística:</strong> Decorrente da assimetria nas distribuições de software (Power-Law), optou-se pela métrica não-paramétrica de Coeficiente de Correlação de Spearman (<i>&rho;</i>), avaliando o p-value a um nível de confiança &alpha; = 0.05.</li>
+        <li><strong>Amostragem:</strong> seleção de repositórios Java com dados completos no consolidado.</li>
+        <li><strong>Métricas de processo:</strong> Stars, idade do projeto (anos), número de releases e LOC.</li>
+        <li><strong>Métricas de qualidade:</strong> CBO, DIT e LCOM agregadas por média no nível de projeto.</li>
+        <li><strong>Teste estatístico:</strong> Spearman ($\\rho$), adequado para distribuições não normais e relações monotônicas.</li>
     </ul>
 
-    <!-- 3. ESTATISTICA -->
-    <h2 id="stats">3. Estatística Descritiva da Amostra</h2>
-    <p>A amostra consiste de {n_repos} repositórios perfeitamente consolidados. O quadro abaixo demonstra a variância absurda inerente aos projetos open-source, justificando o uso de métodos estatísticos não paramétricos.</p>
+    <h2 id="glossario">3. Glossário dos Termos Técnicos</h2>
+    <dl class="glossary">
+        <dt>CBO (Coupling Between Objects)</dt>
+        <dd>Quantidade de acoplamentos entre classes. Valores altos sugerem maior dependência entre componentes.</dd>
+        <dt>DIT (Depth of Inheritance Tree)</dt>
+        <dd>Profundidade de herança. Valores altos podem aumentar reutilização, mas também complexidade de entendimento.</dd>
+        <dt>LCOM (Lack of Cohesion in Methods)</dt>
+        <dd>Falta de coesão entre métodos da classe. Quanto maior, mais provável que a classe concentre responsabilidades dispersas.</dd>
+        <dt>Spearman ($\\rho$)</dt>
+        <dd>Coeficiente de correlação por postos, usado para medir associação monotônica entre variáveis.</dd>
+        <dt>p-value</dt>
+        <dd>Probabilidade de observar o resultado se a hipótese nula fosse verdadeira. Em geral, p &lt; 0.05 indica evidência estatística de associação.</dd>
+    </dl>
+
+    <h2 id="stats">4. Estatística Descritiva</h2>
+    <p>A amostra final contém {n_repos} repositórios com dados válidos para todas as variáveis analisadas.</p>
     
-    <h3>3.1 Variáveis de Processo</h3>
+    <h3>4.1 Variáveis de Processo</h3>
     <table>
         <tr><th>Métrica</th><th>Média</th><th>Mediana</th><th>Desvio Padrão</th><th>Mínimo</th><th>Máximo</th></tr>
         {row_fmt('Stars', st_stars)}
@@ -232,7 +490,7 @@ def main():
         {row_fmt('Tamanho (LOC)', st_loc)}
     </table>
 
-    <h3>3.2 Variáveis de Qualidade Arquitetural</h3>
+    <h3>4.2 Variáveis de Qualidade Arquitetural</h3>
     <table>
         <tr><th>Métrica</th><th>Média</th><th>Mediana</th><th>Desvio Padrão</th><th>Mínimo</th><th>Máximo</th></tr>
         {row_fmt('CBO (Acoplamento)', st_cbo)}
@@ -240,93 +498,31 @@ def main():
         {row_fmt('LCOM (Falta de Coesão)', st_lcom)}
     </table>
 
-    <!-- 4. CORRELAÇÃO -->
-    <h2 id="correlacao">4. Análise Correlacional e Testes de Hipótese</h2>
-    <p>A validação das hipóteses operacionais revelou a matriz de vetores listada a seguir. Relações com p-value inferior a 0.05 rejeitam a hipótese nula de independência.</p>
+    <h2 id="correlacao">5. Correlação Global</h2>
+    <p>A tabela a seguir sintetiza todos os pares avaliados entre variáveis de processo e métricas de qualidade.</p>
 
     <table>
         <tr><th>Vetor Independente X</th><th>Vetor Dependente Y</th><th>Spearman (&rho;)</th><th>p-value</th><th>Significância (&alpha; < 0.05)</th></tr>
-        {corr_rows}
+        {global_corr_rows}
     </table>
 
-    <!-- 5. DISCUSSAO -->
-    <h2 id="discussao">5. Discussão Aprofundada dos Resultados</h2>
-    
-    <div class="highlight">
-        "A engenharia de software no mundo real frequentemente transgrida a intuição arquitetural."
-    </div>
+    <h2 id="rq">6. Resultados por Questão de Pesquisa</h2>
+    <p>Cada questão de pesquisa apresenta os gráficos correspondentes, interpretação estatística e uma dissertação sobre os problemas identificados no comportamento das métricas.</p>
 
-    <h4>Revisitando a H1 (O "Efeito Multidão")</h4>
-    <p>Os dados corroboram ligeiramente a H1. A correlação negativa estatisticamente significativa entre popularidade e acoplamento (CBO) sugere que projetos amplamente escrutinados pelo público são obrigados a manter fronteiras de módulo mais limpas para permitir a contribuição distribuída.</p>
+    {rq_sections}
 
-    <h4>Revisitando a H2 (O "Envelhecimento do Sistema")</h4>
-    <p>A correlação entre Idade e CBO não se demonstrou significativa; entretanto, notamos uma fortíssima tendência (p &lt; 0.0001) ao aumento da árvore de herança (DIT) e da falta de coesão (LCOM) ao longo dos anos. Softwares mais antigos tendem a gerar camadas arquiteturais obsoletas e objetos monolíticos (God Classes).</p>
+    <h2 id="discussao">7. Discussão dos Problemas de Qualidade</h2>
+    <div class="highlight">"Escala de produto e qualidade interna evoluem em tensão constante."</div>
+    <p>Os resultados apontam um padrão recorrente em ecossistemas maduros: à medida que os sistemas crescem em tamanho, idade e volume de evolução, aumenta a probabilidade de erosão arquitetural em níveis distintos (acoplamento, profundidade de herança e coesão). Esse comportamento não significa falha de engenharia em si, mas evidencia que mecanismos de governança arquitetural precisam evoluir na mesma velocidade da entrega de funcionalidades.</p>
+    <p>Do ponto de vista prático, os principais problemas observáveis são: (i) classes com múltiplas responsabilidades em contextos de aumento de LCOM, (ii) interdependência excessiva entre módulos em cenários de elevação de CBO e (iii) hierarquias de herança profundas que elevam custo de compreensão e de teste em DIT alto.</p>
 
-    <h4>Revisitando a H3 e H4 (O Custo da Escala)</h4>
-    <p>De forma irrefutável (rhos próximos de 0.3 e 0.4), o aumento do número de Releases e do Tamanho do Sistema (LOC) eleva severamente o acoplamento sistêmico. Constata-se aqui o Paradoxo do Crescimento: adicionar funcionalidades exige inevitavelmente o intercruzamento de fronteiras de domínio, penalizando as métricas CBO e LCOM.</p>
-
-    <div class="img-container">
-        <!-- Assume plotting script outputs this image -->
-        <img src="plots_parciais/heatmap_spearman.png" alt="Matriz de Correlação de Spearman" onerror="this.style.display='none'">
-        <div class="caption">Figura 1: Heatmap da matriz de covariância. Cores quentes indicam correlação positiva intensa entre as métricas operacionais e estruturais.</div>
-    </div>
-
-    <!-- 6. VISUALIZAÇÕES ESTATÍSTICAS -->
-    <h2 id="visualizacao">6. Apêndice Visual: Gráficos Estatísticos</h2>
-    <p>Abaixo apresentamos a exploração de dados visual (EDA) que fundamenta matematicamente a discussão do capítulo anterior.</p>
-
-    <div class="section-title-img">A. Distribuição da Qualidade por Quartis de Popularidade (Boxplots)</div>
-    <div class="grid-3">
-        <div>
-            <img src="plots_parciais/boxplot_cbomean_by_stars.png" onerror="this.style.display='none'">
-            <div class="caption">CBO por Quartil</div>
-        </div>
-        <div>
-            <img src="plots_parciais/boxplot_ditmean_by_stars.png" onerror="this.style.display='none'">
-            <div class="caption">DIT por Quartil</div>
-        </div>
-        <div>
-            <img src="plots_parciais/boxplot_lcommean_by_stars.png" onerror="this.style.display='none'">
-            <div class="caption">LCOM por Quartil</div>
-        </div>
-    </div>
-
-    <div class="section-title-img">B. RQ01: Impacto da Popularidade (Stars) na Arquitetura</div>
-    <div class="grid-3">
-        <div><img src="plots_parciais/rq01_stars_vs_cbo.png" onerror="this.style.display='none'"></div>
-        <div><img src="plots_parciais/rq01_stars_vs_dit.png" onerror="this.style.display='none'"></div>
-        <div><img src="plots_parciais/rq01_stars_vs_lcom.png" onerror="this.style.display='none'"></div>
-    </div>
-
-    <div class="section-title-img">C. RQ02: Impacto da Maturidade (Idade em Anos)</div>
-    <div class="grid-3">
-        <div><img src="plots_parciais/rq02_maturity_vs_cbo.png" onerror="this.style.display='none'"></div>
-        <div><img src="plots_parciais/rq02_maturity_vs_dit.png" onerror="this.style.display='none'"></div>
-        <div><img src="plots_parciais/rq02_maturity_vs_lcom.png" onerror="this.style.display='none'"></div>
-    </div>
-
-    <div class="section-title-img">D. RQ03: Impacto da Frequência de Atualização (Releases)</div>
-    <div class="grid-3">
-        <div><img src="plots_parciais/rq03_releases_vs_cbo.png" onerror="this.style.display='none'"></div>
-        <div><img src="plots_parciais/rq03_releases_vs_dit.png" onerror="this.style.display='none'"></div>
-        <div><img src="plots_parciais/rq03_releases_vs_lcom.png" onerror="this.style.display='none'"></div>
-    </div>
-
-    <div class="section-title-img">E. RQ04: Impacto do Volume do Sistema (Linhas de Código - LOC)</div>
-    <div class="grid-3">
-        <div><img src="plots_parciais/rq04_loc_vs_cbo.png" onerror="this.style.display='none'"></div>
-        <div><img src="plots_parciais/rq04_loc_vs_dit.png" onerror="this.style.display='none'"></div>
-        <div><img src="plots_parciais/rq04_loc_vs_lcom.png" onerror="this.style.display='none'"></div>
-    </div>
-
-    <!-- 7. CONCLUSAO -->
-    <h2 id="conclusao">7. Conclusão e Ameaças à Validade</h2>
+    <h2 id="conclusao">8. Conclusão e Ameaças à Validade</h2>
     <div class="conclusion-box">
-        <p>A análise empírica deste laboratório estipula que <strong>o aumento da popularidade não degrada a estrutura do software, mas sua mera expansão técnica e temporal, sim.</strong> As equipes técnicas open-source devem atentar-se rigorosamente à refatoração preventiva à medida que o LOC, a Quantidade de Releases e os Anos de Maturidade avançam, para conter o acoplamento inevitável e o enfraquecimento da coesão interna (aumento exponencial do LCOM).</p>
-        <p><strong>Ameaças à Validade:</strong> A escolha da linguagem Java restringe a generalização arquitetural para linguagens dinâmicas ou paradigmas funcionais. Ademais, o estudo reflete uma fotografia do estado processado até o momento no GitHub, passível de vieses estatísticos inerentes à ferramenta CK e flutuações amostrais.</p>
+        <p>Em síntese, a análise sugere que pressão de crescimento e manutenção contínua tende a impactar atributos estruturais do software. A reorganização deste relatório por RQ permite rastrear, para cada pergunta, evidência quantitativa, interpretação e implicações técnicas de forma mais aderente ao padrão acadêmico.</p>
+        <p><strong>Ameaças à validade:</strong> o estudo é observacional e restrito ao ecossistema Java analisado. Além disso, as métricas agregadas por média podem suavizar comportamentos extremos de subsistemas específicos.</p>
     </div>
 
-    <br><br><br>
+    <br><br>
 </body>
 </html>
 """
