@@ -1,0 +1,85 @@
+================================================================================
+LAB03S01 - RELATÓRIO SPRINT 1
+Caracterizando a atividade de code review no GitHub
+================================================================================
+
+1. REPOSITÓRIOS SELECIONADOS
+--------------------------------------------------------------------------------
+Total de repositórios: 200
+Critério: Top 200 repositórios com pelo menos 100 PRs (MERGED + CLOSED)
+
+Tamanho dos repositórios (por número de PRs):
+  - Mínimo: 100
+  - Máximo: 1000
+  - Mediana: 1000
+  - Média: 714.93
+
+Repositórios por linguagem:
+  - Java: 200
+
+
+2. CRITÉRIOS DE SELEÇÃO DE PRS
+--------------------------------------------------------------------------------
+✓ Status: MERGED ou CLOSED
+✓ Mínimo de 1 revisão (review_comments >= 1)
+✓ Tempo de revisão: mínimo 1 hora
+
+
+3. DADOS COLETADOS
+--------------------------------------------------------------------------------
+Total de PRs coletados: 1182
+PRs MERGED: 901
+PRs CLOSED: 281
+
+
+4. ESTATÍSTICAS DESCRITIVAS (MEDIANAS)
+--------------------------------------------------------------------------------
+
+--- Tamanho ---
+Arquivos alterados: 4
+Linhas adicionadas: 83
+Linhas removidas: 11
+Total de mudanças: 106
+
+--- Tempo de Análise ---
+Horas para revisão: 70.37 horas
+Dias para revisão: 2.93 dias
+
+--- Descrição ---
+Caracteres na descrição: 686
+PRs com descrição: 92.1%
+
+--- Interações ---
+Comentários: 1
+Comentários de revisão: 3
+Participantes únicos: 6
+
+
+5. HIPÓTESES INICIAIS (INFORMAIS)
+--------------------------------------------------------------------------------
+
+H1: PRs pequenas (poucas linhas) têm maior chance de serem MERGED
+    - Hipótese: Código mais pequeno é mais fácil de revisar e tem menos problemas
+    
+H2: PRs com descrições detalhadas têm maior chance de serem MERGED
+    - Hipótese: Descrição clara facilita a revisão e aumenta confiança
+    
+H3: PRs que levam mais tempo para revisão têm mais comentários
+    - Hipótese: Discussões mais longas indicam revisão mais rigorosa
+    
+H4: PRs com mais participantes têm maior chance de serem MERGED
+    - Hipótese: Mais olhos = mais feedback construtivo
+    
+H5: PRs grandes levam mais tempo para serem revisadas
+    - Hipótese: Complexidade de revisar código aumenta com o tamanho
+    
+H6: PRs MERGED têm mais participantes que PRs CLOSED
+    - Hipótese: Colaboração ativa leva a integração bem-sucedida
+
+
+================================================================================
+Próximas etapas (Lab03S02):
+- Completar dataset com todas as métricas
+- Validar dados coletados
+- Primeira análise exploratória
+================================================================================

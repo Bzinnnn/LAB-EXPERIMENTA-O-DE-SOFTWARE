@@ -1,0 +1,54 @@
+# Git ignore para projeto de análise de PRs
+
+# Variáveis de ambiente
+.env
+.env.local
+.env.*.local
+
+# Cache Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Dados sensíveis (não versionar dados coletados grandes)
+*.csv
+!requirements.txt
+*.json
+!giscus.json
+
+# Logs
+*.log
+logs/
+
+# Resultados temporários
+temp/
+tmp/
+*.tmp
