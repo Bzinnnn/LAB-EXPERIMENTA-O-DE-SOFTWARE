@@ -1,6 +1,4 @@
-"""
-Utilitários para queries ao GitHub API
-"""
+"""Utilitarios simples para queries na API do GitHub."""
 
 import os
 from dotenv import load_dotenv
@@ -11,7 +9,7 @@ import time
 load_dotenv()
 
 class GitHubClient:
-    """Cliente reutilizável para GitHub API"""
+    """Cliente simples e reutilizavel para a API do GitHub."""
     
     def __init__(self):
         self.token = os.getenv('GITHUB_TOKEN')
@@ -22,7 +20,7 @@ class GitHubClient:
         self._request_count = 0
         
     def get_rate_limit(self):
-        """Retorna informações do rate limit"""
+        """Retorna informacoes basicas de rate limit."""
         rate_limit = self.github.get_rate_limit()
         return {
             'remaining': rate_limit.core.remaining,
@@ -63,13 +61,13 @@ class GitHubClient:
                 order=order
             )
             
-            repos = []
-            for i, repo in enumerate(results):
-                if i >= (max_pages * 30):
+            collected = []
+            for idx, repo in enumerate(results):
+                if idx >= (max_pages * 30):
                     break
-                repos.append(repo)
+                collected.append(repo)
             
-            return repos
+            return collected
             
         except RateLimitExceededException:
             print("❌ Rate limit atingido! Tente novamente em alguns minutos.")
@@ -107,20 +105,20 @@ class GitHubClient:
             
             prs = repo.get_pulls(state=state, sort=sort, direction='desc')
             
-            result = []
-            for i, pr in enumerate(prs):
-                if max_prs and i >= max_prs:
+            collected = []
+            for idx, pr in enumerate(prs):
+                if max_prs and idx >= max_prs:
                     break
-                result.append(pr)
+                collected.append(pr)
             
-            return result
+            return collected
             
         except Exception as e:
             print(f"Erro ao buscar PRs de {repo_name}: {str(e)}")
             return []
     
     def check_health(self):
-        """Verifica a saúde da conexão com GitHub API"""
+        """Cheque rapido de conexao com a API."""
         try:
             limit = self.get_rate_limit()
             print(f"✓ Conectado ao GitHub API")

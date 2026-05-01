@@ -1,7 +1,4 @@
-"""
-Script otimizado para coletar PRs usando GraphQL + Paralelização
-Estratégia: Máxima velocidade (15-20 minutos para 200 repos)
-"""
+"""Coleta PRs com GraphQL e paralelizacao para acelerar."""
 
 import os
 from datetime import datetime
@@ -17,20 +14,20 @@ load_dotenv()
 
 class PRMetricsCollectorGraphQL:
     def __init__(self):
-        self.github_token = os.getenv('GITHUB_TOKEN')
-        if not self.github_token:
+        self.token = os.getenv('GITHUB_TOKEN')
+        if not self.token:
             raise ValueError("GITHUB_TOKEN não configurado")
         
-        self.g = Github(self.github_token)
-        self.pr_data = []
+        self.gh = Github(self.token)
+        self.pr_rows = []
         self.graphql_url = "https://api.github.com/graphql"
         self.headers = {
-            "Authorization": f"Bearer {self.github_token}",
+            "Authorization": f"Bearer {self.token}",
             "Content-Type": "application/json",
         }
         
     def graphql_query(self, query):
-        """Executa uma query GraphQL"""
+        """Executa uma query GraphQL."""
         try:
             response = requests.post(
                 self.graphql_url,
@@ -50,7 +47,7 @@ class PRMetricsCollectorGraphQL:
             return None
     
     def build_pr_query(self, owner, repo_name, cursor=None):
-        """Constrói query GraphQL para coletar PRs em batch"""
+        """Monta a query GraphQL para coletar PRs em lote."""
         
         cursor_param = f', after: "{cursor}"' if cursor else ""
         
@@ -96,7 +93,7 @@ class PRMetricsCollectorGraphQL:
         return query
     
     def calculate_metrics_from_graphql(self, pr_data, repo_full_name):
-        """Processa dados do GraphQL e calcula métricas"""
+        """Processa dados do GraphQL e calcula metricas."""
         
         try:
             pr_number = pr_data['number']
@@ -104,37 +101,34 @@ class PRMetricsCollectorGraphQL:
             state = pr_data['state']
             created_at = datetime.fromisoformat(pr_data['createdAt'].replace('Z', '+00:00'))
             
-            # Determinar data final e status
             if state == "MERGED":
-                final_date = datetime.fromisoformat(pr_data['mergedAt'].replace('Z', '+00:00'))
+                closed_at = datetime.fromisoformat(pr_data['mergedAt'].replace('Z', '+00:00'))
                 status = "MERGED"
             else:
-                final_date = datetime.fromisoformat(pr_data['closedAt'].replace('Z', '+00:00'))
+                closed_at = datetime.fromisoformat(pr_data['closedAt'].replace('Z', '+00:00'))
                 status = "CLOSED"
             
-            # Verificar se levou pelo menos 1 hora
-            time_diff = final_date - created_at
-            hours_to_review = time_diff.total_seconds() / 3600
+            # Filtro de PRs muito rapidos
+            time_diff = closed_at - created_at
+            review_hours = time_diff.total_seconds() / 3600
             
-            if hours_to_review < 1:
-                return None  # Filtrar PRs muito rápidos (bots)
+            if review_hours < 1:
+                return None
             
-            # Contar participantes (aproximação via contadores)
             comment_count = pr_data['comments']['totalCount']
             review_count = pr_data['reviews']['totalCount']
             participant_count = 1 + comment_count + review_count  # autor + comentadores + revisores
             
-            # Filtro: pelo menos 1 revisão
             if review_count < 1:
                 return None
             
-            pr_info = {
+            pr_row = {
                 'repository': repo_full_name,
                 'pr_number': pr_number,
                 'pr_title': pr_title,
                 'pr_status': status,
                 'created_at': created_at,
-                'merged_or_closed_at': final_date,
+                'merged_or_closed_at': closed_at,
                 
                 # Tamanho
                 'files_changed': pr_data['files']['totalCount'],
@@ -143,7 +137,7 @@ class PRMetricsCollectorGraphQL:
                 'total_changes': pr_data['additions'] + pr_data['deletions'],
                 
                 # Tempo de análise (em horas)
-                'time_to_review_hours': hours_to_review,
+                'time_to_review_hours': review_hours,
                 
                 # Descrição
                 'description_length': len(pr_data['body']) if pr_data['body'] else 0,
@@ -162,14 +156,14 @@ class PRMetricsCollectorGraphQL:
                 'participants': f"approx_{participant_count}_users"
             }
             
-            return pr_info
+            return pr_row
             
         except Exception as e:
             print(f"Erro ao processar PR #{pr_data.get('number', '?')}: {str(e)}")
             return None
     
     def collect_prs_graphql(self, repo_full_name):
-        """Coleta PRs de um repositório usando GraphQL (todo em uma query)"""
+        """Coleta PRs de um repositorio via GraphQL."""
         
         owner, repo_name = repo_full_name.split('/')
         pr_count = 0
@@ -177,7 +171,6 @@ class PRMetricsCollectorGraphQL:
         
         while True:
             try:
-                # Query GraphQL
                 query = self.build_pr_query(owner, repo_name, cursor)
                 result = self.graphql_query(query)
                 
@@ -194,20 +187,18 @@ class PRMetricsCollectorGraphQL:
                 if not prs:
                     break
                 
-                # Processar cada PR
                 for pr in prs:
                     metrics = self.calculate_metrics_from_graphql(pr, repo_full_name)
                     if metrics:
-                        self.pr_data.append(metrics)
+                        self.pr_rows.append(metrics)
                         pr_count += 1
                 
-                # Paginação
                 page_info = repo_data['pullRequests']['pageInfo']
                 if not page_info['hasNextPage']:
                     break
                 
                 cursor = page_info['endCursor']
-                time.sleep(0.2)  # Rate limiting entre páginas
+                time.sleep(0.2)
                 
             except Exception as e:
                 print(f"  ❌ Erro ao coletar PRs de {repo_full_name}: {str(e)}")
@@ -227,13 +218,11 @@ class PRMetricsCollectorGraphQL:
         completed = 0
         
         with ThreadPoolExecutor(max_workers=max_workers) as executor:
-            # Submeter todas as tarefas
             futures = {
                 executor.submit(self.collect_prs_graphql, repo): repo 
                 for repo in repositories_list
             }
             
-            # Processar conforme completam
             for future in as_completed(futures):
                 repo = futures[future]
                 completed += 1
@@ -248,11 +237,11 @@ class PRMetricsCollectorGraphQL:
     
     def save_pr_data(self, output_path='data/pr_metrics.csv'):
         """Salva os dados coletados em CSV"""
-        if not self.pr_data:
+        if not self.pr_rows:
             print("Nenhum dado para salvar")
             return None
         
-        df = pd.DataFrame(self.pr_data)
+        df = pd.DataFrame(self.pr_rows)
         
         # Reordenar colunas
         columns = [
@@ -274,11 +263,11 @@ class PRMetricsCollectorGraphQL:
     
     def display_summary(self):
         """Exibe resumo das métricas coletadas"""
-        if not self.pr_data:
+        if not self.pr_rows:
             print("Nenhum dado para exibir")
             return
         
-        df = pd.DataFrame(self.pr_data)
+        df = pd.DataFrame(self.pr_rows)
         
         print("\n" + "="*80)
         print("RESUMO DAS MÉTRICAS COLETADAS (GraphQL + Paralelização)")

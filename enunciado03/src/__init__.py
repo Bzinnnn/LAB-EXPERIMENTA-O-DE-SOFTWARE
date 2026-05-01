@@ -1,7 +1,4 @@
-"""
-Enunciado 3 - Caracterizando a atividade de code review no GitHub
-Package initialization
-"""
+"""Enunciado 3 - pacote de suporte para a coleta e analise."""
 
 __version__ = "0.1.0"
 __author__ = "Lab Engenharia de Software"

@@ -1,8 +1,6 @@
 """
-Script principal para Lab03S01 - Enunciado 3
-Executa:
-1. Seleção dos 200 repositórios mais populares
-2. Coleta de PRs e cálculo de métricas
+Script principal do Lab03S01 (Enunciado 3).
+Fluxo: selecionar repositorios, coletar PRs e gerar relatorio.
 """
 
 import os
@@ -10,7 +8,7 @@ import sys
 import pandas as pd
 from dotenv import load_dotenv
 
-# Adicionar src ao path
+# Ajuste simples de path para importar modulos locais
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'src'))
 
 from repository_selector import RepositorySelector
@@ -18,7 +16,7 @@ from pr_metrics import PRMetricsCollector
 
 load_dotenv()
 
-# Criar diretórios necessários
+# Garantir pastas de saida
 os.makedirs('enunciado03/data', exist_ok=True)
 os.makedirs('enunciado03/docs', exist_ok=True)
 
@@ -27,7 +25,7 @@ def main():
     print("LAB03S01 - Enunciado 3: Code Review Analysis")
     print("="*80)
     
-    # Verificar token
+    # Token do GitHub e obrigatorio para a coleta
     if not os.getenv('GITHUB_TOKEN'):
         print("\n⚠️  ERRO: GITHUB_TOKEN não configurado!")
         print("Configure a variável de ambiente ou crie um arquivo .env com:")
@@ -35,30 +33,28 @@ def main():
         return
     
     try:
-        # ETAPA 1: Verificar se repositórios já foram selecionados
-        repos_csv_path = 'enunciado03/data/selected_repositories.csv'
+        # ETAPA 1: Reusar CSV se ja existir
+        repos_csv = 'enunciado03/data/selected_repositories.csv'
         
-        if os.path.exists(repos_csv_path):
+        if os.path.exists(repos_csv):
             print("\n[ETAPA 1] ✓ CSV de repositórios já existe!")
             print("-" * 80)
-            print(f"Carregando: {repos_csv_path}")
+            print(f"Carregando: {repos_csv}")
             
-            # Carregar repositórios do CSV
-            repos_df = pd.read_csv(repos_csv_path)
+            repos_df = pd.read_csv(repos_csv)
             print(f"✓ {len(repos_df)} repositórios carregados do arquivo existente")
             print(f"  - Primeiros 3: {', '.join(repos_df['full_name'].head(3).tolist())}")
             
-            # Converter DataFrame para lista de dicts para compatibilidade
-            repos = repos_df.to_dict('records')
+            # Lista de dicts para manter o mesmo contrato das funcoes
+            repo_list = repos_df.to_dict('records')
         else:
             print("\n[ETAPA 1] Selecionando repositórios populares...")
             print("-" * 80)
             
             selector = RepositorySelector()
-            repos = selector.get_popular_repositories(max_repos=200)
+            repo_list = selector.get_popular_repositories(max_repos=200)
             
-            # Salvar repositórios
-            repos_df = selector.save_repositories(repos_csv_path)
+            repos_df = selector.save_repositories(repos_csv)
             selector.display_summary()
         
         # ETAPA 2: Coletar PRs e métricas
@@ -67,15 +63,13 @@ def main():
         
         collector = PRMetricsCollector()
         
-        # Usar lista de repositórios
-        repo_names = [repo['full_name'] for repo in repos]
-        collector.collect_from_multiple_repositories(repo_names, max_prs_per_repo=50)
+        repo_full_names = [repo['full_name'] for repo in repo_list]
+        collector.collect_from_multiple_repositories(repo_full_names, max_prs_per_repo=50)
         
-        # Salvar dados
         pr_df = collector.save_pr_data('enunciado03/data/pr_metrics.csv')
         collector.display_summary()
         
-        # ETAPA 3: Gerar relatório inicial
+        # ETAPA 3: Relatorio inicial
         print("\n[ETAPA 3] Gerando relatório inicial...")
         print("-" * 80)
         

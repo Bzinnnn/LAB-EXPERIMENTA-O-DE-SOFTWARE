@@ -1,7 +1,4 @@
-"""
-Script para selecionar os 200 repositórios mais populares do GitHub.
-Critérios: ao menos 100 PRs (MERGED + CLOSED)
-"""
+"""Seleciona os repositorios mais populares do GitHub."""
 
 import os
 import json
@@ -14,11 +11,11 @@ load_dotenv()
 
 class RepositorySelector:
     def __init__(self):
-        self.github_token = os.getenv('GITHUB_TOKEN')
-        if not self.github_token:
+        self.token = os.getenv('GITHUB_TOKEN')
+        if not self.token:
             raise ValueError("GITHUB_TOKEN não configurado. Configure a variável de ambiente ou .env")
         
-        self.g = Github(self.github_token)
+        self.gh = Github(self.token)
         self.selected_repos = []
         
     def get_popular_repositories(self, max_repos=200):
@@ -29,7 +26,7 @@ class RepositorySelector:
         print(f"Coletando os {max_repos} repositórios mais populares...")
         
         query = "stars:>1000 language:java"
-        repos = self.g.search_repositories(query=query, sort="stars", order="desc")
+        repos = self.gh.search_repositories(query=query, sort="stars", order="desc")
         
         selected_count = 0
         checked_count = 0
@@ -41,8 +38,8 @@ class RepositorySelector:
             checked_count += 1
             
             try:
-                # Contar PRs com status MERGED ou CLOSED
-                merged_prs = self.g.search_issues(
+                # Contagem simples de PRs (MERGED + CLOSED)
+                merged_prs = self.gh.search_issues(
                     f"repo:{repo.full_name} type:pr state:closed",
                     sort="created"
                 )

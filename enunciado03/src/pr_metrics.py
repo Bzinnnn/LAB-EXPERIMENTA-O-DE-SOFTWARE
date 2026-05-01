@@ -1,7 +1,4 @@
-"""
-Script para coletar Pull Requests e calcular métricas.
-Métricas: tamanho, tempo de análise, descrição, interações
-"""
+"""Coleta Pull Requests e calcula metricas basicas."""
 
 import os
 import json
@@ -15,50 +12,46 @@ load_dotenv()
 
 class PRMetricsCollector:
     def __init__(self):
-        self.github_token = os.getenv('GITHUB_TOKEN')
-        if not self.github_token:
+        self.token = os.getenv('GITHUB_TOKEN')
+        if not self.token:
             raise ValueError("GITHUB_TOKEN não configurado. Configure a variável de ambiente ou .env")
         
-        self.g = Github(self.github_token)
-        self.pr_data = []
+        self.gh = Github(self.token)
+        self.pr_rows = []
         
     def calculate_pr_metrics(self, pr, repo):
         """
-        Calcula todas as métricas para um PR:
-        - Tamanho: arquivos, adições, remoções
-        - Tempo de análise: horas entre criação e merge/close
-        - Descrição: caracteres do corpo
-        - Interações: participantes, comentários
+        Calcula metricas para um PR:
+        - tamanho: arquivos, adicoes, remocoes
+        - tempo de analise: horas entre criacao e merge/close
+        - descricao: caracteres do corpo
+        - interacoes: participantes, comentarios
         """
         
         try:
-            # Data de criação
             created_at = pr.created_at
             
-            # Data de fechamento (merge ou close)
             if pr.merged_at:
-                final_date = pr.merged_at
+                closed_at = pr.merged_at
                 status = "MERGED"
             else:
-                final_date = pr.closed_at
+                closed_at = pr.closed_at
                 status = "CLOSED"
             
-            # Verificar se levou pelo menos 0.5 horas (30 minutos)
-            # PRs muito rápidas podem ser automáticas, mas 30min é mais realista
-            time_diff = final_date - created_at
-            hours_to_review = time_diff.total_seconds() / 3600
+            # Filtro simples para PRs muito rapidos
+            time_diff = closed_at - created_at
+            review_hours = time_diff.total_seconds() / 3600
             
-            if hours_to_review < 0.5:
-                return None  # Filtrar PRs revisadas muito rápido (possivelmente automáticas)
+            if review_hours < 0.5:
+                return None
             
-            # Coletar informações do PR
-            pr_info = {
+            pr_row = {
                 'repository': repo.full_name,
                 'pr_number': pr.number,
                 'pr_title': pr.title,
                 'pr_status': status,
                 'created_at': created_at,
-                'merged_or_closed_at': final_date,
+                'merged_or_closed_at': closed_at,
                 
                 # Tamanho
                 'files_changed': pr.changed_files,
@@ -67,7 +60,7 @@ class PRMetricsCollector:
                 'total_changes': pr.additions + pr.deletions,
                 
                 # Tempo de análise (em horas)
-                'time_to_review_hours': hours_to_review,
+                'time_to_review_hours': review_hours,
                 
                 # Descrição
                 'description_length': len(pr.body) if pr.body else 0,
@@ -86,26 +79,21 @@ class PRMetricsCollector:
                 'url': pr.html_url
             }
             
-            # Estimativa de participantes (otimizado)
-            # Usar: 1 (autor) + comentadores + revisores
-            # Isso evita iterar sobre todos os comentários (economia de requisições)
-            participant_count = 1  # autor
+            # Estimativa rapida de participantes para evitar custo de API
+            participant_count = 1
             
-            # Adicionar aproximação de comentadores únicos
             if pr.comments > 0:
-                participant_count += min(pr.comments, pr.comments)  # estimativa conservadora
+                participant_count += min(pr.comments, pr.comments)
             
-            # Adicionar aproximação de revisores
             if pr.review_comments > 0:
                 participant_count += min(pr.review_comments, pr.review_comments)
             
-            # Limitar a máximo razoável (aprox: 1 + comments + reviews)
             participant_count = min(participant_count, pr.comments + pr.review_comments + 1)
             
-            pr_info['participant_count'] = participant_count
-            pr_info['participants'] = f"approx_{participant_count}_users"
+            pr_row['participant_count'] = participant_count
+            pr_row['participants'] = f"approx_{participant_count}_users"
             
-            return pr_info
+            return pr_row
             
         except Exception as e:
             print(f"Erro ao processar PR #{pr.number}: {str(e)}")
@@ -121,24 +109,24 @@ class PRMetricsCollector:
         - Máximo de 50 PRs por repositório (amostra estatística)
         """
         
-        print(f"\n  Coletando PRs de {repo_name} (máx {max_prs_per_repo})...")
+        print(f"\n  Coletando PRs de {repo_name} (max {max_prs_per_repo})...")
         
         try:
-            repo = self.g.get_repo(repo_name)
+            repo = self.gh.get_repo(repo_name)
             
             # Buscar PRs fechados (MERGED ou CLOSED)
             prs = repo.get_pulls(state='closed', sort='created', direction='desc')
             
-            pr_count = 0
-            prs_processed = 0
+            valid_prs = 0
+            scanned_prs = 0
             
             for pr in prs:
                 # Limite de PRs por repositório
-                if prs_processed >= max_prs_per_repo:
+                if scanned_prs >= max_prs_per_repo:
                     print(f"    ⚠️  Limite de {max_prs_per_repo} PRs atingido para {repo_name}")
                     break
                 
-                prs_processed += 1
+                scanned_prs += 1
                 
                 try:
                     # Só processar se tiver revisões
@@ -148,19 +136,19 @@ class PRMetricsCollector:
                     metrics = self.calculate_pr_metrics(pr, repo)
                     
                     if metrics:  # Se passou em todos os filtros
-                        self.pr_data.append(metrics)
-                        pr_count += 1
+                        self.pr_rows.append(metrics)
+                        valid_prs += 1
                         
-                        if pr_count % 5 == 0:
-                            print(f"    ✓ {pr_count} PRs válidos coletados...")
+                        if valid_prs % 5 == 0:
+                            print(f"    ✓ {valid_prs} PRs validos coletados...")
                         
-                        time.sleep(0.2)  # Rate limiting aumentado
+                        time.sleep(0.2)
                     
                 except Exception as e:
                     continue
             
-            print(f"  ✓ Total de PRs coletados de {repo_name}: {pr_count}/{prs_processed} processados")
-            return pr_count
+            print(f"  ✓ Total de PRs coletados de {repo_name}: {valid_prs}/{scanned_prs} processados")
+            return valid_prs
             
         except Exception as e:
             print(f"  ❌ Erro ao coletar PRs de {repo_name}: {str(e)}")
@@ -193,7 +181,7 @@ class PRMetricsCollector:
         total_prs = 0
         
         for idx, repo_name in enumerate(repositories_list, 1):
-            elapsed = (time.time() - start_time) / 60  # em minutos
+            elapsed = (time.time() - start_time) / 60
             prs_per_min = (total_prs / elapsed) if elapsed > 0 else 0
             eta_mins = ((len(repositories_list) - idx) / len(repositories_list)) * elapsed if elapsed > 0 else 0
             
@@ -217,11 +205,11 @@ class PRMetricsCollector:
     
     def save_pr_data(self, output_path='data/pr_metrics.csv'):
         """Salva os dados coletados em CSV"""
-        if not self.pr_data:
+        if not self.pr_rows:
             print("Nenhum dado para salvar")
             return None
         
-        df = pd.DataFrame(self.pr_data)
+        df = pd.DataFrame(self.pr_rows)
         
         # Reordenar colunas
         columns = [
@@ -243,11 +231,11 @@ class PRMetricsCollector:
     
     def display_summary(self):
         """Exibe resumo das métricas coletadas"""
-        if not self.pr_data:
+        if not self.pr_rows:
             print("Nenhum dado para exibir")
             return
         
-        df = pd.DataFrame(self.pr_data)
+        df = pd.DataFrame(self.pr_rows)
         
         print("\n" + "="*80)
         print("RESUMO DAS MÉTRICAS COLETADAS")
