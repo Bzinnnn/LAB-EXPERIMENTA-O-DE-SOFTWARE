@@ -74,6 +74,9 @@ class PRMetricsCollectorGraphQL:
                         comments {{
                             totalCount
                         }}
+                        participants {{
+                            totalCount
+                        }}
                         reviewThreads {{
                             totalCount
                         }}
@@ -117,7 +120,9 @@ class PRMetricsCollectorGraphQL:
             
             comment_count = pr_data['comments']['totalCount']
             review_count = pr_data['reviews']['totalCount']
-            participant_count = 1 + comment_count + review_count  # autor + comentadores + revisores
+            
+            # Usando a contagem de participantes da API GraphQL
+            participant_count = pr_data['participants']['totalCount'] if 'participants' in pr_data else 1
             
             if review_count < 1:
                 return None
@@ -146,14 +151,13 @@ class PRMetricsCollectorGraphQL:
                 # Interações
                 'comment_count': comment_count,
                 'review_count': review_count,
-                'participant_count': min(participant_count, comment_count + review_count + 1),
+                'participant_count': participant_count,
                 
                 # Autor
                 'author': pr_data['author']['login'] if pr_data['author'] else 'unknown',
                 
                 # URL
-                'url': f"https://github.com/{repo_full_name}/pull/{pr_number}",
-                'participants': f"approx_{participant_count}_users"
+                'url': f"https://github.com/{repo_full_name}/pull/{pr_number}"
             }
             
             return pr_row
