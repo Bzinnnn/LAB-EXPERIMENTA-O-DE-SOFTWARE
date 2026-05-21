@@ -1,0 +1,13 @@
+{
+  "full_name": "facebook/rocksdb",
+  "language": "C++",
+  "since_date": "2025-05-26",
+  "stars": 31693,
+  "forks": 6832,
+  "commits_last_12m": 612,
+  "pr_count_12m": 942,
+  "pr_median_time_hours": 25.604444444444447,
+  "issues_count_12m": 184,
+  "issues_closed_12m": 28,
+  "issue_median_time_hours": 170.62208333333334
+}

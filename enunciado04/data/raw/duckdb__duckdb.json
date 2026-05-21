@@ -1,0 +1,13 @@
+{
+  "full_name": "duckdb/duckdb",
+  "language": "C++",
+  "since_date": "2025-05-26",
+  "stars": 38343,
+  "forks": 3254,
+  "commits_last_12m": 18037,
+  "pr_count_12m": 892,
+  "pr_median_time_hours": 13.371388888888887,
+  "issues_count_12m": 208,
+  "issues_closed_12m": 106,
+  "issue_median_time_hours": 92.285
+}

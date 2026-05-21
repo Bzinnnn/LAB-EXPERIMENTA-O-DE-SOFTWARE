@@ -1,0 +1,7 @@
+pandas>=1.5
+numpy
+matplotlib
+seaborn
+jupyter
+requests
+tqdm
