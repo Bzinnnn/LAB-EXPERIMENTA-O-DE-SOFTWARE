@@ -5,10 +5,14 @@ from pathlib import Path
 from datetime import datetime, timedelta, timezone
 from urllib.parse import quote_plus
 import logging
+import os
+from dotenv import load_dotenv
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from threading import Lock
 from tqdm import tqdm
 import pandas as pd
+
+load_dotenv(BASE.parent / '.env')
 
 BASE = Path(__file__).resolve().parents[1]
 RAW_DIR = BASE / 'data' / 'raw'
@@ -35,14 +39,11 @@ MAX_WORKERS = 4
 checkpoint_lock = Lock()
 
 
-def read_token(env_path='.env'):
-    p = Path(env_path)
-    if not p.exists():
-        raise FileNotFoundError('.env not found')
-    for line in p.read_text().splitlines():
-        if line.strip().startswith('GITHUB_TOKEN='):
-            return line.split('=',1)[1].strip()
-    raise RuntimeError('GITHUB_TOKEN not found in .env')
+def read_token():
+    token = os.getenv('GITHUB_TOKEN')
+    if not token:
+        raise RuntimeError('GITHUB_TOKEN not found in environment variables or .env file')
+    return token
 
 
 class GitHubCollector:
